@@ -37,6 +37,7 @@ import { prefersReducedMotion } from './motion';
 import { drawWorld } from './draw';
 import { createSky, updateSky } from './sky';
 import { rollPickup, ufoPoints } from './drops';
+import { alienLook, shipLean } from './alienMotion';
 import { ALIEN_PALETTES } from './sprites';
 import type { Bomb, Bullet, Entity, HudSnapshot, Invader, PickupKind, Ufo, WingCannon, World } from './types';
 import { soundService } from '../services/soundService';
@@ -63,7 +64,7 @@ export class GameEngine {
 
   constructor() {
     this.world = {
-      player: { x: (CANVAS_WIDTH - PLAYER_WIDTH) / 2, y: PLAYER_Y },
+      player: { x: (CANVAS_WIDTH - PLAYER_WIDTH) / 2, y: PLAYER_Y, lean: 0 },
       invaders: [],
       bullets: [],
       enemyBullets: [],
@@ -106,6 +107,7 @@ export class GameEngine {
     const world = this.world;
     world.player.x = (CANVAS_WIDTH - PLAYER_WIDTH) / 2;
     world.player.y = PLAYER_Y;
+    world.player.lean = 0;
     world.bullets = [];
     world.enemyBullets = [];
     world.bombs = [];
@@ -210,6 +212,7 @@ export class GameEngine {
           width: INVADER_WIDTH,
           height: INVADER_HEIGHT,
           type,
+          look: alienLook(this.world.level, row, col),
           points: (3 - type) * 10,
           alive: true,
           homeX: x,
@@ -280,6 +283,7 @@ export class GameEngine {
     if (left) this.world.player.x -= PLAYER_SPEED * dt;
     if (right) this.world.player.x += PLAYER_SPEED * dt;
     this.world.player.x = clamp(this.world.player.x, 0, CANVAS_WIDTH - PLAYER_WIDTH);
+    this.world.player.lean = shipLean(Boolean(left), Boolean(right));
   }
 
   private tryFire(dt: number): void {

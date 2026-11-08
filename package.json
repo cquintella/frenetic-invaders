@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "start": "node server.ts",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx --test src/scores/topScores.test.ts src/services/music.test.ts src/services/bombSound.test.ts src/game/sprites.test.ts src/game/bombFx.test.ts src/game/weapons.test.ts src/game/pause.test.ts"
+    "test": "node --import tsx --test src/scores/topScores.test.ts src/services/music.test.ts src/services/bombSound.test.ts src/game/sprites.test.ts src/game/bombFx.test.ts src/game/weapons.test.ts src/game/pause.test.ts src/game/alienMotion.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

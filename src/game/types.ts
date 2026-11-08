@@ -21,6 +21,8 @@ export interface InvaderDive {
 
 export interface Invader extends Entity {
   type: number;
+  /** Index into the approved A1–E5 board. Does not affect points or behavior. */
+  look?: number;
   points: number;
   alive: boolean;
   /** Formation slot. `x`/`y` leave this slot only during a dive. */
@@ -218,7 +220,7 @@ export interface Sky {
 }
 
 export interface World {
-  player: { x: number; y: number };
+  player: { x: number; y: number; /** -1 left bank, 1 right bank, 0 neutral. Visual only. */ lean?: -1 | 0 | 1 };
   invaders: Invader[];
   bullets: Bullet[];
   enemyBullets: Bullet[];

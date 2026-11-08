@@ -17,7 +17,7 @@ import type { World } from './types';
 function paintInvader(ctx: CanvasRenderingContext2D, world: World, inv: World['invaders'][number], x: number, y: number): void {
   const palette = ALIEN_PALETTES[inv.type % ALIEN_PALETTES.length];
   if (!palette) return;
-  drawAlienCraft(ctx, inv.type, world.anim, x, y, inv.width, inv.height, palette);
+  drawAlienCraft(ctx, inv.type, world.anim, x, y, inv.width, inv.height, palette, world.time, inv.look ?? 0, Math.round(inv.homeX));
 }
 
 function drawInvaders(ctx: CanvasRenderingContext2D, world: World): void {
@@ -285,7 +285,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, world: World): void {
 
   const hidden = world.iframe > 0 && Math.floor(world.time * 14) % 2 === 0;
   if (!hidden) {
-    drawPlayerCraft(ctx, x, y, PLAYER_WIDTH, PLAYER_HEIGHT, world.time, world.twin > 0);
+    drawPlayerCraft(ctx, x, y, PLAYER_WIDTH, PLAYER_HEIGHT, world.time, world.twin > 0, world.player.lean ?? 0);
   }
 }
 

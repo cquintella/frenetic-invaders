@@ -1,3 +1,5 @@
+import { ALIEN_FRAME_COUNT, alienFrame } from './alienMotion';
+import { prefersReducedMotion } from './motion';
 import { ALIEN_PALETTES, type Palette } from './sprites';
 
 /**
@@ -359,7 +361,48 @@ function paintWing(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   pod(ctx, w * 0.08, h * 0.02, w * 0.84, h * 0.96, 1);
 }
 
-/** Provisional alien. Not the design the player will pick from the 3×3 board. */
+const bakedAliens = new Map<number, HTMLCanvasElement[]>();
+
+/**
+ * Eight poses baked once from a cut sprite. The upper body breathes.
+ * The lower body sways by about a pixel, which reads as limbs when the
+ * crop has them, without inventing joints. Runtime only blits.
+ */
+export function bakeAlienFrames(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement[] {
+  const frames: HTMLCanvasElement[] = [];
+  const split = Math.round(height * 0.58);
+  for (let index = 0; index < ALIEN_FRAME_COUNT; index += 1) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width + 4;
+    canvas.height = height + 4;
+    const pen = canvas.getContext('2d');
+    if (!pen) continue;
+    const cycle = (index / ALIEN_FRAME_COUNT) * Math.PI * 2;
+    const breath = 1 + 0.018 * Math.sin(cycle);
+    pen.save();
+    pen.translate(2 + width / 2, 2 + split / 2);
+    pen.scale(1 + (breath - 1) * 0.35, breath);
+    pen.translate(-width / 2, -split / 2);
+    pen.drawImage(source, 0, 0, width, split, 0, 0, width, split);
+    pen.restore();
+    const sway = Math.sin(cycle);
+    const slices = 6;
+    for (let slice = 0; slice < slices; slice += 1) {
+      const sy = split + Math.floor(((height - split) * slice) / slices);
+      const sh = Math.ceil((height - split) / slices) + 1;
+      const shift = sway * (slice / slices) * 1.2;
+      pen.drawImage(source, 0, sy, width, sh, 2 + shift, 2 + sy, width, sh);
+    }
+    frames.push(canvas);
+  }
+  return frames;
+}
+
+export function setBakedAlien(look: number, frames: HTMLCanvasElement[]): void {
+  bakedAliens.set(look, frames);
+}
+
+/** Provisional until the approved A1–E5 cuts are on disk. Not a replacement design. */
 export function drawAlienCraft(
   ctx: CanvasRenderingContext2D,
   type: number,
@@ -368,8 +411,23 @@ export function drawAlienCraft(
   y: number,
   w: number,
   h: number,
-  palette: Palette
+  palette: Palette,
+  time = 0,
+  look = 0,
+  slot = 0
 ): void {
+  const baked = bakedAliens.get(look);
+  if (baked && baked.length === ALIEN_FRAME_COUNT) {
+    const index = prefersReducedMotion() ? 0 : alienFrame(time, look, slot);
+    const sprite = baked[index] ?? baked[0];
+    if (sprite) {
+      const scale = Math.min(w / sprite.width, h / sprite.height);
+      const dw = sprite.width * scale;
+      const dh = sprite.height * scale;
+      ctx.drawImage(sprite, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+      return;
+    }
+  }
   const kind = type % 3;
   const step = frame ? 1 : 0;
   blit(ctx, `alien-${kind}-${step}-${palette.body}`, x, y, w, h, (pen, pw, ph) => {
@@ -395,7 +453,50 @@ export function drawUfoCraft(
   blit(ctx, `ufo-${Math.round(w)}-${Math.round(h)}`, x, y, w, h, paintUfo);
 }
 
-/** Front gunship: spine, canopy, twin pods, bronze bells. Flames stay live. */
+/** Nose point, as a fraction of the extracted sheet. Shared by every pose. */
+const SHIP_NOSE = { x: 299 / 598, y: 7 / 656 };
+const shipPoses: Partial<Record<-1 | 0 | 1, HTMLImageElement>> = {};
+let shipPosesStarted = false;
+
+function shipAsset(file: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  const prefix = base.endsWith('/') ? base : `${base}/`;
+  return `${prefix}sprites/ship/${file}`;
+}
+
+function ensureShipPoses(): void {
+  if (shipPosesStarted || typeof Image === 'undefined') return;
+  shipPosesStarted = true;
+  const files: Array<[-1 | 0 | 1, string]> = [
+    [-1, 'lean-left.png'],
+    [0, 'neutral.png'],
+    [1, 'lean-right.png'],
+  ];
+  for (const [lean, file] of files) {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = shipAsset(file);
+    shipPoses[lean] = image;
+  }
+}
+
+function containShip(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const scale = h / image.height;
+  const dw = image.width * scale;
+  const dh = image.height * scale;
+  const dx = x + w / 2 - image.width * SHIP_NOSE.x * scale;
+  const dy = y - image.height * SHIP_NOSE.y * scale;
+  ctx.drawImage(image, dx, dy, dw, dh);
+}
+
+/** Front gunship cut from the approved sheet. The blue-shot panel is not used. */
 export function drawPlayerCraft(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -403,8 +504,15 @@ export function drawPlayerCraft(
   w: number,
   h: number,
   time: number,
-  twin: boolean
+  twin: boolean,
+  lean: -1 | 0 | 1 = 0
 ): void {
+  ensureShipPoses();
+  const image = shipPoses[lean] ?? shipPoses[0];
+  if (image && image.complete && image.naturalWidth > 0) {
+    containShip(ctx, image, x, y, w, h);
+    return;
+  }
   blit(ctx, `player-${Math.round(w)}-${Math.round(h)}`, x, y, w, h, paintPlayer);
   const glow = 0.45 + 0.55 * Math.abs(Math.sin(time * 22));
   ctx.save();
