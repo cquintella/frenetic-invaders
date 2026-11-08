@@ -1,0 +1,5 @@
+{
+  "name": "Frenetic Invaders",
+  "description": "A classic Space Invaders clone with multiple levels, diverse enemies, and a global leaderboard.",
+  "requestFramePermissions": []
+}

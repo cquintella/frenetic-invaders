@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frenetic Invaders — Manual</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #050805;
+        --panel: rgba(0, 0, 0, 0.45);
+        --line: rgba(74, 222, 128, 0.35);
+        --text: #e7f6ec;
+        --dim: rgba(187, 247, 208, 0.72);
+        --green: #4ade80;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(ellipse at 50% 0%, rgba(34, 197, 94, 0.16), transparent 42%),
+          var(--bg);
+        color: var(--text);
+        font: 16px/1.55 Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+      }
+      header {
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(20, 83, 45, 0.28), rgba(0, 0, 0, 0.2));
+        padding: 1.25rem 1.25rem 1rem;
+        margin-bottom: 1.75rem;
+      }
+      .mark {
+        margin: 0;
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--green);
+      }
+      h1 {
+        margin: 0.35rem 0 0;
+        font-size: 2.4rem;
+        font-style: italic;
+        letter-spacing: -0.04em;
+        line-height: 0.9;
+      }
+      h2 {
+        margin: 2rem 0 0.6rem;
+        font-size: 1.15rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      h3 { margin: 1.4rem 0 0.4rem; font-size: 1rem; }
+      p, li { color: var(--dim); }
+      a { color: var(--green); }
+      code, .mono {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.92em;
+        color: #ecfdf5;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.8rem 0 1rem;
+        font-size: 0.95rem;
+      }
+      th, td {
+        text-align: left;
+        padding: 0.4rem 0.5rem;
+        border-bottom: 1px solid rgba(74, 222, 128, 0.2);
+        vertical-align: top;
+      }
+      th { color: var(--green); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      pre {
+        overflow: auto;
+        padding: 0.8rem 1rem;
+        background: #020617;
+        border: 1px solid var(--line);
+        color: #d1fae5;
+      }
+      .note {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(187, 247, 208, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="mark">Quintella Software</p>
+        <h1>Frenetic Invaders</h1>
+        <p>Manual de uso. O apêndice explica a arquitetura. Feche esta janela para voltar ao jogo.</p>
+      </header>
+
+      <h2>Uma partida</h2>
+      <p>Você escreve um callsign de até 10 letras e aperta Initiate Mission. A canhoneira nasce no centro, com 1 laser e 3 pontos de escudo. A formação tem 5 filas por 10 colunas.</p>
+      <p>O passo da formação é discreto: ela anda, para, anda. Se encostar numa borda, desce e inverte o sentido. A cada 5 segundos um alien sorteado desce numa elipse, solta uma bomba na metade do caminho até a nave e volta ao lugar na formação. A bomba cai em linha reta.</p>
+      <p>De vez em quando um disco cruza o alto da tela. A velocidade dele sobe e desce como uma onda, e ele também balança na vertical. Destruí-lo soma 100, 150, 200, 300 ou 500 pontos e solta um módulo. Você pega o módulo encostando a nave nele antes que saia por baixo.</p>
+      <p>Quando o último alien morre, a simulação congela. A tela mostra a onda concluída e o score. Em 3,2 segundos, ou com Espaço, Enter ou clique, começa a onda seguinte. Canhão de escolta e tiro duplo continuam: a escolta leva as cargas que restam, e o tiro duplo não tem relógio. O laser ganha uma carga, até 3. Nas ondas 5, 10, 15… o escudo ganha um ponto, até 5.</p>
+      <p>A missão acaba de dois jeitos. Um tiro ou uma bomba acerta a nave sem escudo. Ou a formação, medida pelo lugar dela e não pelo alien que está mergulhando, chega na altura da nave. O escudo não impede esse segundo caso. O score vai uma vez para o Hall of Fame.</p>
+
+      <h2>Como abrir</h2>
+      <p>É preciso Node.js e npm. Na pasta do jogo:</p>
+      <pre><code>npm install
+npm run dev</code></pre>
+      <p>O servidor sobe em <span class="mono">http://localhost:3000</span>. No macOS ou Linux, <span class="mono">./install.sh</span> faz os dois passos. No Windows, <span class="mono">install.bat</span>.</p>
+      <p><span class="mono">npm run build</span> gera <span class="mono">dist/</span>. <span class="mono">npm start</span> serve essa pasta quando <span class="mono">NODE_ENV=production</span>. <span class="mono">npm run lint</span> é o <span class="mono">tsc --noEmit</span>.</p>
+
+      <h2>Controles</h2>
+      <table>
+        <thead><tr><th>Tecla</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr><td>A, D ou setas</td><td>Move a nave na horizontal</td></tr>
+          <tr><td>Espaço</td><td>Tiro. Cadência de 0,35 s. Com tiro duplo, saem dois</td></tr>
+          <tr><td>X ou Shift</td><td>Laser. Gasta 1 carga. Recarga de 1 s entre disparos</td></tr>
+          <tr><td>Espaço, Enter ou clique</td><td>Na tela de onda concluída, avança</td></tr>
+          <tr><td>Initiate Mission</td><td>Começa a partida. O callsign precisa ter texto</td></tr>
+        </tbody>
+      </table>
+      <p>O callsign é gravado em maiúsculas, no máximo 10 caracteres. Enter não inicia a missão na abertura e não reinicia depois do game over. Esses dois passos são botões.</p>
+
+      <h2>A nave</h2>
+      <p>A Defender é uma canhoneira de frente: fuselagem central, canopy claro e dois pods. A caixa de colisão é 50×40 pixels. A nave anda a 288 pixels por segundo e não sai da tela.</p>
+      <p>O escudo começa em 3 e vai até 5. Com escudo, um acerto tira 1 ponto, limpa os tiros e as bombas inimigas da tela e deixa a nave invulnerável por 0,55 s. Esse acerto é dano real: somem o canhão de escolta e o tiro duplo. A invulnerabilidade desses 0,55 s nega o hit por completo, então não gasta escudo nem tira o tiro duplo. O laser não some num hit de escudo: é munição da onda, não um módulo do disco. Sem escudo, o acerto seguinte encerra a partida.</p>
+      <p>Módulos do disco, com estas chances: escolta 40%, tiro duplo 35%, escudo 25%.</p>
+      <ul>
+        <li><strong>Escolta.</strong> Até dois canhões, um de cada lado. O par divide 6 salvas. A cada 0,52 s cada canhão montado solta uma bomba e o conjunto gasta uma carga. O primeiro módulo monta o esquerdo e carrega 6. O segundo monta o direito sem somar outro carregador. Com os dois presentes, outro módulo recarrega 6. A bomba sobe, estoura uma vez e fere num raio de 52 pixels. Não machuca a nave e não repete o dano a cada quadro.</li>
+        <li><strong>Tiro duplo.</strong> Não expira no tempo nem na troca de onda. Os dois plasmas saem com 16 pixels de separação até um hit que cause dano. Invulnerabilidade mantém o upgrade. Partida nova começa sem ele.</li>
+        <li><strong>Escudo.</strong> Soma 1 ponto. No teto de 5, o módulo vira 250 pontos.</li>
+      </ul>
+      <p>Os dois primeiros atravessam a troca de onda. Um acerto, mesmo absorvido pelo escudo, tira os dois.</p>
+
+      <h2>Invasores</h2>
+      <p>São três desenhos, de cima para baixo: lula, caranguejo, polvo. Cada um tem dois quadros, trocados a cada passo da marcha.</p>
+      <table>
+        <thead><tr><th>Filas</th><th>Pontos</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>30</td></tr>
+          <tr><td>2 e 3</td><td>20</td></tr>
+          <tr><td>4 e 5</td><td>10</td></tr>
+        </tbody>
+      </table>
+      <p>A marcha fica mais curta e o passo fica mais longo a cada onda. Na onda 1 o intervalo é 0,78 s e o passo é 12 pixels. Na onda N o intervalo é <span class="mono">0,78 / (1 + (N − 1) × 0,12)</span> e o passo é <span class="mono">12 × (1 + (N − 1) × 0,05)</span>. Ao virar a borda, a formação desce 25 pixels.</p>
+      <p>Um alien em mergulho não atira o tiro comum da marcha. O tiro comum sai na vertical. A bomba do mergulho também cai na vertical e pode ser destruída por um tiro seu. Se você mata o alien antes da metade da elipse, a bomba não sai.</p>
+      <p>O laser é uma coluna de 30 pixels de largura que dura 0,5 s. Apaga todo alien e o disco que cruzarem essa faixa.</p>
+
+      <h2>Disco, céu e placar</h2>
+      <p>O primeiro disco entra entre 10 e 20 segundos de onda. Depois de cada aparição, o próximo espera outro intervalo nessa mesma faixa. A velocidade de base sobe com a onda e é multiplicada por uma onda senoidal que nunca cai abaixo de 30% da base.</p>
+      <p>O céu troca a cada onda e repete a cada quatro:</p>
+      <table>
+        <thead><tr><th>Onda</th><th>Céu</th></tr></thead>
+        <tbody>
+          <tr><td>1, 5, 9…</td><td>Azul, campo de estrelas e uma faixa de poeira</td></tr>
+          <tr><td>2, 6, 10…</td><td>Âmbar, Via Láctea diagonal</td></tr>
+          <tr><td>3, 7, 11…</td><td>Violeta, aglomerado globular, planeta com anel</td></tr>
+          <tr><td>4, 8, 12…</td><td>Verde, constelação de estrelas brilhantes</td></tr>
+        </tbody>
+      </table>
+      <p>O campo desce, em três velocidades, para a nave parecer avançar. Longe: estrelas. No meio: planeta, de uma a quatro luas sorteadas (craterada, gelo, enxofre ou névoa), asteroides e um cometa, às vezes dois. O cometa viaja em linha reta numa direção sorteada entre 0° e 360°, com a cauda no sentido contrário. Perto: três nebulosas e um meteoro. Desviar a nave ainda desloca as camadas na horizontal, pouco. Nada disso colide com a nave.</p>
+      <p>O Hall of Fame lista os 100 maiores scores, em ordem numérica decrescente, guardados em <span class="mono">scores.db</span>. O banco não apaga o histórico. Abrir essa tela busca a lista de novo. Os nomes sobem inclinados sobre a arte de abertura. Com movimento reduzido, a lista fica parada e pode ser rolada. O nome enviado é o callsign da partida, junto com o score e a onda em que a missão acabou.</p>
+
+      <h2>Som</h2>
+      <p>A abertura toca 01_menu_starfield.mp3 em loop. Na partida as ondas alternam 02_voo_hiperespaco.mp3, 03_combate_enxame.mp3 e 04_chefe_nave_mae.mp3, e depois a sequência recomeça. A quarta faixa não fica reservada a chefe. A faixa continua na tela de onda concluída. M silencia, P pausa, e os colchetes mudam o volume. A bomba tem um som mais longo e grave que a explosão de um alien.</p>
+
+      <h2>Apêndice. Making of</h2>
+      <p>O jogo é um Space Invaders de canvas. React desenha as telas e o placar. A simulação não mora no estado do React.</p>
+      <h3>Mapa</h3>
+      <pre><code>server.ts                 Express, API de scores, Vite em desenvolvimento
+src/main.tsx              Monta o App
+src/App.tsx               Telas, teclado, loop e envio do score
+src/types.ts              Score e GameState
+src/services/soundService.ts
+src/game/engine.ts        Regras
+src/game/types.ts         World e o que cabe nele
+src/game/constants.ts     Números da simulação
+src/game/drops.ts         Sorteio puro do disco
+src/game/sprites.ts       Bitmaps
+src/game/draw.ts          Desenho do quadro
+src/game/sky.ts           Quatro céus
+public/manual.html        Esta janela</code></pre>
+      <p><span class="mono">@google/genai</span> está no <span class="mono">package.json</span> e o Vite injeta <span class="mono">GEMINI_API_KEY</span>. Nenhum arquivo em <span class="mono">src/</span> chama esse cliente. A partida não usa modelo de linguagem.</p>
+
+      <h3>Quem manda em quê</h3>
+      <p>Um exemplo. O alien morre, o score sobe, o React mostra o número novo.</p>
+      <ol>
+        <li><span class="mono">App</span> guarda as teclas em <span class="mono">GameEngine.setKey</span>.</li>
+        <li>O <span class="mono">requestAnimationFrame</span> acumula o tempo real e chama <span class="mono">engine.update(1/60)</span> no máximo três vezes por quadro. O passo fixo está em <span class="mono">STEP</span>.</li>
+        <li><span class="mono">update</span> devolve um <span class="mono">HudSnapshot</span>: score, onda, lasers, escudo, tempos de módulo, <span class="mono">over</span> e <span class="mono">bannerLevel</span>.</li>
+        <li>Se a chave do snapshot mudou, <span class="mono">App</span> copia isso para o estado do React. O canvas não espera esse estado. <span class="mono">engine.draw</span> lê o <span class="mono">World</span> direto.</li>
+      </ol>
+      <p>O <span class="mono">World</span> é o estado da partida: nave, invasores, tiros, bombas, feixe, disco, módulos, partículas, céu, score, onda, invulnerabilidade e o banner da onda limpa. O React não guarda posição de alien.</p>
+      <table>
+        <thead><tr><th>Estado</th><th>O que a tela faz</th></tr></thead>
+        <tbody>
+          <tr><td>START</td><td>Callsign, missão, Hall of Fame, Manual. Música de abertura</td></tr>
+          <tr><td>PLAYING</td><td>Loop ligado</td></tr>
+          <tr><td>LEVEL_UP</td><td>Splash. O loop para. engine.advance() só então chama a próxima onda</td></tr>
+          <tr><td>GAME_OVER</td><td>Um POST /api/scores. Retry chama engine.start()</td></tr>
+          <tr><td>LEADERBOARD</td><td>GET /api/scores</td></tr>
+        </tbody>
+      </table>
+      <p>O botão Manual chama <span class="mono">window.open('/manual.html', 'frenetic-manual', 'popup=yes,…')</span> a partir do clique. A página é esta, servida de <span class="mono">public/manual.html</span>. Se o navegador bloquear a popup, a tela inicial avisa.</p>
+      <p>A API é pequena. <span class="mono">GET /api/scores</span> devolve no máximo os 100 maiores. <span class="mono">POST /api/scores</span> grava sem apagar os registros antigos. Em desenvolvimento o Express usa o Vite como middleware. Em produção serve <span class="mono">dist/</span>, inclusive <span class="mono">musica/</span> e <span class="mono">title/</span>.</p>
+
+      <h3>O passo de simulação</h3>
+      <p><span class="mono">update</span> sai na hora se <span class="mono">over</span> ou se <span class="mono">bannerLevel</span> está preenchido. Por isso o splash congela marcha, módulos e céu.</p>
+      <p>Na ordem, quando a partida corre: mover a nave, tiro, laser, tiros amigos, feixe, disco, tiros inimigos, bombas, módulos caindo, escoltas, marcha, mergulho, acertos nos aliens. Se todos estão mortos e a lista não está vazia, <span class="mono">openBanner</span> guarda o número da onda atual, corta o som do disco e toca o jingle. Não incrementa a onda. <span class="mono">advance</span> é que zera o banner e chama <span class="mono">nextLevel</span>.</p>
+      <p><span class="mono">nextLevel</span> soma 1 na onda, dá o laser, dá o escudo nas múltiplas de 5, limpa tiros, bombas, feixe, disco e flutuadores, troca o céu e gera outra formação. Não mexe em escolta nem em tiro duplo. Um módulo que ainda estava caindo atravessa o splash e continua na onda seguinte.</p>
+      <p>O acerto na nave está em <span class="mono">hurt</span>. Com escudo, desce um ponto e zera <span class="mono">wings</span> e <span class="mono">twin</span>. Sem escudo, <span class="mono">fail</span> marca <span class="mono">over</span>, para a música e toca o game over. A formação usa a mesma <span class="mono">fail</span> quando <span class="mono">homeY</span> passa de <span class="mono">player.y - 20</span>.</p>
+
+      <h3>Componentes da simulação</h3>
+      <p><strong>Constantes.</strong> Tudo que é velocidade está em pixels por segundo. O tiro sobe a 480. O módulo cai a 140. A tela lógica é 800×600, desenhada com o devicePixelRatio limitado a 2. O CSS pede o mesmo tamanho em pixels CSS.</p>
+      <p><strong>Drops.</strong> <span class="mono">ufoPoints</span> e <span class="mono">rollPickup</span> recebem um número em [0, 1) e não leem o World. O motor passa <span class="mono">Math.random()</span>. Dá para testar o sorteio sem canvas.</p>
+      <p><strong>Sprites.</strong> Mapas de inteiros. Alien é 8×8, dois quadros. A nave é 16×14. A escolta é 8×6. <span class="mono">drawBitmap</span> pinta luz, corpo ou sombra conforme a célula de cima e a de baixo estão vazias. A nave é desenhada a 3 pixels por célula, alinhada à base da caixa de 50×40.</p>
+      <p><strong>Desenho.</strong> <span class="mono">drawWorld</span> pinta o céu, a formação, o mergulhador por cima com um fantasma, o disco, módulos, bombas, tiros, feixe, escoltas, nave, partículas e os números que flutuam. O HUD de canvas fica na faixa de baixo. O shake de impacto é um translate em volta do quadro, tirado antes do HUD.</p>
+      <p><strong>Céu.</strong> <span class="mono">createSky(level)</span> escolhe <span class="mono">(level − 1) % 4</span> e monta o tema com um gerador mulberry32 semeado pelo índice. O tema da onda se repete. O número de luas (de uma a quatro) e a rota do cometa são sorteados de novo a cada onda. Planeta, lua e asteroide descem com <span class="mono">speed</span>. O cometa guarda <span class="mono">vx</span> e <span class="mono">vy</span> constantes, ângulo uniforme em 360°, e a cauda aponta para o lado oposto. <span class="mono">drift</span> desloca tudo na lateral quando a nave se move. Estrelas são as mais lentas. Corpos do meio vêm depois. Nebulosas e meteoros são os mais rápidos, e não compartilham o mesmo valor entre si. A nebulosa é um conjunto de gradientes radiais com núcleo claro e nós escuros.</p>
+      <p><strong>Som.</strong> Um AudioContext com ganho master em 0,28 e um compressor. A trilha é um único player em loop, em <span class="mono">public/musica</span>. A mesma faixa não reinicia entre PLAYING e LEVEL_UP. A bomba é síntese local, com ataque, corpo grave e cauda. O círculo que piscava virou flash, onda de choque e partículas. O shake respeita movimento reduzido.</p>
+
+      <h3>O que o código não faz</h3>
+      <p>Não há bunkers no chão. A proteção é o escudo da nave.</p>
+      <p>O mergulho não tira o alien da formação para sempre. <span class="mono">homeX</span> e <span class="mono">homeY</span> continuam sendo a vaga. A marcha anda a vaga. O desenho só sai dela enquanto <span class="mono">dive</span> existe.</p>
+      <p class="note">Feche esta janela para voltar à canhoneira.</p>
+    </main>
+  </body>
+</html>
