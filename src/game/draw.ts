@@ -10,7 +10,7 @@ import {
 } from './constants';
 import { prefersReducedMotion } from './motion';
 import { ALIEN_PALETTES } from './sprites';
-import { drawAlienCraft, drawPlayerCraft, drawWingCraft } from './shipArt';
+import { drawAlienCraft, drawPlayerCraft, drawUfoCraft, drawWingCraft } from './shipArt';
 import { drawSky } from './sky';
 import type { World } from './types';
 
@@ -59,52 +59,7 @@ function drawUfo(ctx: CanvasRenderingContext2D, world: World): void {
   }
   ctx.globalAlpha = 1;
 
-  const x = ufo.x;
-  const y = ufo.y;
-  const w = ufo.width;
-  const h = ufo.height;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.beginPath();
-  ctx.ellipse(w / 2, h / 2 + 1, w / 2 - 1, h / 2 - 1, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#9aa4b2';
-  ctx.fill();
-  strokeInk(ctx, 1.5);
-  ctx.beginPath();
-  ctx.ellipse(w / 2, h / 2 - 1, w / 2 - 8, h / 3.2, 0, Math.PI, 0);
-  ctx.fillStyle = '#f8fafc';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(w / 2, h / 2 + 4, w / 2 - 10, h / 5, 0, 0, Math.PI);
-  ctx.fillStyle = '#334155';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(6, h / 2 + 1);
-  ctx.lineTo(w - 6, h / 2 + 1);
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(w / 2, h / 2, 10, Math.PI, 0);
-  ctx.fillStyle = '#7dd3fc';
-  ctx.fill();
-  strokeInk(ctx, 1.25);
-  ctx.beginPath();
-  ctx.arc(w / 2 + 2, h / 2 - 1, 6, Math.PI * 1.15, Math.PI * 1.85);
-  ctx.fillStyle = '#0369a1';
-  ctx.fill();
-  const lights = ['#fdba74', '#fb7185', '#67e8f9'];
-  const blink = Math.floor(world.time * 6);
-  for (let i = 0; i < 3; i++) {
-    ctx.fillStyle = lights[(blink + i) % lights.length] ?? '#fff';
-    ctx.beginPath();
-    ctx.arc(15 + i * 14, h / 2 + 3, 2.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-  ctx.restore();
+  drawUfoCraft(ctx, ufo.x, ufo.y, ufo.width, ufo.height);
 }
 
 function drawPickups(ctx: CanvasRenderingContext2D, world: World): void {

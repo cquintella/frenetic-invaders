@@ -159,7 +159,7 @@ O acerto na nave está em `hurt`. Com escudo, desce um ponto e zera `wings` e `t
 
 **Drops.** `ufoPoints` e `rollPickup` recebem um número em `[0, 1)` e não leem o `World`. O motor passa `Math.random()`. Dá para testar o sorteio sem canvas.
 
-**Naves.** Os mapas 8×8, 16×14 e 8×6 continuam no código como referência de forma. Na tela a nave, os aliens e a escolta são curvas com contorno fino e cel shading, dentro das mesmas caixas. O canvas usa o `devicePixelRatio` até 2 e não força pixelização. O plasma é a mesma gota de antes, com 40% da largura; o comprimento e a caixa de 4×12 não mudaram.
+**Naves.** Os mapas 8×8, 16×14 e 8×6 continuam no código como referência de forma. Na tela a nave segue a folha frontal (bico escuro, canopy, esferas no ombro, coluna de vents, dois pods com tomada e bocal de bronze). A escolta é esse pod. O disco é o anel com cabine e palhetas laranja, achatado na caixa 60×25; as pernas não cabem. A cunha ao lado do anel e a prancha ortográfica não entram como silhueta. A arte dos aliens ainda não foi escolhida: a formação usa três desenhos provisórios, só até a prancha 3×3. Caixas, cores de fileira e mecânica não mudam. O desenho é pintado a 8× e reduzido. O canvas usa o `devicePixelRatio` até 2 e não força pixelização. O plasma é a mesma gota de antes, com 40% da largura; o comprimento e a caixa de 4×12 não mudaram.
 
 **Desenho.** `drawWorld` pinta o céu, a formação, o mergulhador por cima com um fantasma, o disco, módulos, bombas, tiros, feixe, escoltas, nave, partículas e os números que flutuam. O HUD de canvas fica na faixa de baixo. O shake de impacto é um `translate` em volta do quadro, tirado antes do HUD.
 

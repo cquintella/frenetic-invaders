@@ -1,106 +1,365 @@
-import type { Palette } from './sprites';
+import { ALIEN_PALETTES, type Palette } from './sprites';
 
-const INK = '#000';
+/**
+ * Sprites are painted once at 8× and blitted into the hit box.
+ *
+ * Player: front gunship on the two dedicated sheets (nose cap, canopy,
+ * shoulder balls, vent spine, twin pods, bronze bells). No logos or letters.
+ * Escort: that sheet's side pod, reduced into the wing box.
+ * Saucer: the ring craft, flattened into 60×25. Legs do not fit. The wedge
+ * beside it and the orthographic racer are a different craft and are not
+ * used as the gameplay silhouette.
+ * Aliens below are provisional stand-ins only. They are not a selected
+ * design; a 3×3 board replaces them when the player picks.
+ */
 
-function stroke(ctx: CanvasRenderingContext2D, width: number): void {
+const SCALE = 8;
+const cache = new Map<string, HTMLCanvasElement>();
+
+function ink(ctx: CanvasRenderingContext2D, width: number): void {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.lineWidth = width;
-  ctx.strokeStyle = INK;
+  ctx.strokeStyle = '#111';
   ctx.stroke();
 }
 
-function paintCel(
-  ctx: CanvasRenderingContext2D,
-  trace: () => void,
-  light: string,
-  body: string,
-  dark: string,
-  width: number,
+function fillInk(ctx: CanvasRenderingContext2D, color: string, width: number): void {
+  ctx.fillStyle = color;
+  ctx.fill();
+  ink(ctx, width);
+}
+
+function raster(
+  key: string,
   w: number,
-  h: number
+  h: number,
+  paint: (ctx: CanvasRenderingContext2D, w: number, h: number) => void
+): HTMLCanvasElement | null {
+  const found = cache.get(key);
+  if (found) return found;
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(w * SCALE));
+  canvas.height = Math.max(1, Math.round(h * SCALE));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(SCALE, SCALE);
+  paint(ctx, w, h);
+  cache.set(key, canvas);
+  return canvas;
+}
+
+function blit(
+  ctx: CanvasRenderingContext2D,
+  key: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  paint: (ctx: CanvasRenderingContext2D, w: number, h: number) => void
 ): void {
-  trace();
-  ctx.fillStyle = body;
+  const src = raster(key, w, h, paint);
+  if (!src) {
+    paint(ctx, w, h);
+    return;
+  }
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(src, x, y, w, h);
+}
+
+/** Side pod from the front sheet: intake, vents, outer plate, bronze bell. */
+function pod(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, side: -1 | 1): void {
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.38, y + h * 0.1);
+  ctx.bezierCurveTo(x + w * 0.78, y + h * 0.02, x + w * 0.98, y + h * 0.16, x + w * 0.94, y + h * 0.36);
+  ctx.lineTo(x + w * 0.9, y + h * 0.66);
+  ctx.quadraticCurveTo(x + w * 0.72, y + h * 0.76, x + w * 0.5, y + h * 0.74);
+  ctx.quadraticCurveTo(x + w * 0.26, y + h * 0.76, x + w * 0.1, y + h * 0.66);
+  ctx.lineTo(x + w * 0.06, y + h * 0.36);
+  ctx.bezierCurveTo(x + w * 0.02, y + h * 0.16, x + w * 0.16, y + h * 0.02, x + w * 0.38, y + h * 0.1);
+  ctx.closePath();
+  fillInk(ctx, '#e7eef4', 0.65);
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = side < 0 ? '#f8fafc' : '#9aa8b8';
+  ctx.fillRect(x, y, w * 0.42, h);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.46, y + h * 0.16, w * 0.16, h * 0.075, 0, 0, Math.PI * 2);
+  fillInk(ctx, '#c6a36a', 0.45);
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.46, y + h * 0.16, w * 0.07, h * 0.032, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1c1917';
+  ctx.fill();
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(x + w * 0.26, y + h * 0.36, w * 0.16, h * 0.18);
+  ctx.fillRect(x + w * 0.48, y + h * 0.36, w * 0.16, h * 0.18);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 0.35;
+  ctx.strokeRect(x + w * 0.26, y + h * 0.36, w * 0.16, h * 0.18);
+  ctx.strokeRect(x + w * 0.48, y + h * 0.36, w * 0.16, h * 0.18);
+  const plateX = side < 0 ? x + w * 0.08 : x + w * 0.7;
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(plateX, y + h * 0.38, w * 0.2, h * 0.2);
+  ctx.strokeRect(plateX, y + h * 0.38, w * 0.2, h * 0.2);
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.5, y + h * 0.84, w * 0.24, h * 0.09, 0, 0, Math.PI * 2);
+  fillInk(ctx, '#8d6b34', 0.5);
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.5, y + h * 0.84, w * 0.1, h * 0.035, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#3f2a12';
+  ctx.fill();
+}
+
+function hullPath(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cx = w / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, h * 0.015);
+  ctx.bezierCurveTo(cx + w * 0.05, h * 0.05, cx + w * 0.09, h * 0.14, cx + w * 0.12, h * 0.3);
+  ctx.lineTo(cx + w * 0.14, h * 0.7);
+  ctx.quadraticCurveTo(cx + w * 0.08, h * 0.8, cx, h * 0.76);
+  ctx.quadraticCurveTo(cx - w * 0.08, h * 0.8, cx - w * 0.14, h * 0.7);
+  ctx.lineTo(cx - w * 0.12, h * 0.3);
+  ctx.bezierCurveTo(cx - w * 0.09, h * 0.14, cx - w * 0.05, h * 0.05, cx, h * 0.015);
+  ctx.closePath();
+}
+
+function paintPlayer(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cx = w / 2;
+  const cone = (x: number, dir: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x, h * 0.28);
+    ctx.lineTo(x + dir * w * 0.035, h * 0.34);
+    ctx.lineTo(x + dir * w * 0.012, h * 0.52);
+    ctx.lineTo(x - dir * w * 0.03, h * 0.4);
+    ctx.closePath();
+    fillInk(ctx, '#8d7344', 0.4);
+  };
+  cone(cx - w * 0.2, -1);
+  cone(cx + w * 0.2, 1);
+
+  hullPath(ctx, w, h);
+  fillInk(ctx, '#d5dee8', 0.75);
+  ctx.save();
+  hullPath(ctx, w, h);
+  ctx.clip();
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, cx - w * 0.01, h);
+  ctx.fillStyle = '#8b99a8';
+  ctx.fillRect(cx + w * 0.04, h * 0.28, w * 0.16, h * 0.5);
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.ellipse(cx, h * 0.07, w * 0.05, h * 0.055, 0, 0, Math.PI * 2);
+  fillInk(ctx, '#667484', 0.45);
+  ctx.beginPath();
+  ctx.moveTo(cx - w * 0.04, h * 0.16);
+  ctx.quadraticCurveTo(cx, h * 0.12, cx + w * 0.04, h * 0.16);
+  ctx.lineTo(cx + w * 0.03, h * 0.27);
+  ctx.quadraticCurveTo(cx, h * 0.3, cx - w * 0.03, h * 0.27);
+  ctx.closePath();
+  fillInk(ctx, '#5ec8f0', 0.4);
+  ctx.fillStyle = '#e0f7ff';
+  ctx.fillRect(cx - w * 0.02, h * 0.17, w * 0.012, h * 0.07);
+
+  ctx.beginPath();
+  ctx.arc(cx - w * 0.15, h * 0.32, w * 0.048, 0, Math.PI * 2);
+  ctx.arc(cx + w * 0.15, h * 0.32, w * 0.048, 0, Math.PI * 2);
+  fillInk(ctx, '#242b33', 0.45);
+  ctx.fillStyle = '#94a3b8';
+  ctx.beginPath();
+  ctx.arc(cx - w * 0.16, h * 0.3, w * 0.012, 0, Math.PI * 2);
+  ctx.arc(cx + w * 0.14, h * 0.3, w * 0.012, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(cx - w * 0.03, h * 0.36, w * 0.06, h * 0.34);
+  ctx.fillStyle = '#0f172a';
+  for (let i = 0; i < 4; i += 1) {
+    ctx.fillRect(cx - w * 0.02, h * (0.4 + i * 0.07), w * 0.04, h * 0.028);
+  }
+
+  pod(ctx, w * 0.0, h * 0.32, w * 0.32, h * 0.66, -1);
+  pod(ctx, w * 0.68, h * 0.32, w * 0.32, h * 0.66, 1);
+}
+
+function paintSlit(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number, pal: Palette): void {
+  const bite = frame ? 1.4 : -0.6;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.28, h * 0.06);
+  ctx.bezierCurveTo(w * 0.7, h * 0.0, w * 0.96, h * 0.22, w * 0.9, h * 0.48);
+  ctx.quadraticCurveTo(w * 0.84, h * 0.62, w * 0.72, h * 0.58);
+  ctx.quadraticCurveTo(w * 0.86, h * 0.78, w * 0.7 + bite, h * 0.96);
+  ctx.quadraticCurveTo(w * 0.5, h * 0.78, w * 0.4, h * 0.66);
+  ctx.quadraticCurveTo(w * 0.22, h * 0.92, w * 0.16 - bite * 0.4, h * 0.98);
+  ctx.quadraticCurveTo(w * 0.08, h * 0.7, w * 0.16, h * 0.42);
+  ctx.bezierCurveTo(w * 0.02, h * 0.28, w * 0.08, h * 0.08, w * 0.28, h * 0.06);
+  ctx.closePath();
+  fillInk(ctx, pal.body, 0.9);
+  ctx.beginPath();
+  ctx.moveTo(w * 0.18, h * 0.16);
+  ctx.quadraticCurveTo(w * 0.08, h * 0.02, w * 0.04, h * 0.14);
+  ctx.quadraticCurveTo(w * 0.12, h * 0.22, w * 0.22, h * 0.24);
+  ctx.closePath();
+  fillInk(ctx, pal.dark, 0.6);
+  ctx.fillStyle = pal.dark;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.62, h * 0.28, w * 0.16, h * 0.1, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(w * 0.22, h * 0.36);
+  ctx.quadraticCurveTo(w * 0.5, h * 0.3, w * 0.78, h * 0.4);
+  ctx.lineTo(w * 0.74, h * 0.48);
+  ctx.quadraticCurveTo(w * 0.48, h * 0.4, w * 0.24, h * 0.44);
+  ctx.closePath();
+  fillInk(ctx, '#d9f99d', 0.55);
+  ctx.fillStyle = '#1a2e05';
+  ctx.fillRect(w * 0.46, h * 0.36, w * 0.035, h * 0.1);
+  ctx.fillStyle = '#f5edd6';
+  ctx.beginPath();
+  ctx.moveTo(w * 0.3, h * 0.7);
+  ctx.lineTo(w * 0.36, h * 0.86);
+  ctx.lineTo(w * 0.42, h * 0.7);
+  ctx.moveTo(w * 0.62, h * 0.64);
+  ctx.lineTo(w * 0.7, h * 0.9);
+  ctx.lineTo(w * 0.56, h * 0.66);
+  ctx.fill();
+}
+
+function paintBlind(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number, pal: Palette): void {
+  const gape = frame ? h * 0.08 : 0;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.2, h * 0.08);
+  ctx.bezierCurveTo(w * 0.55, h * 0.0, w * 0.92, h * 0.12, w * 0.88, h * 0.4);
+  ctx.quadraticCurveTo(w * 0.96, h * 0.7, w * 0.7, h * 0.78);
+  ctx.quadraticCurveTo(w * 0.55, h * 0.95, w * 0.4, h * 0.76);
+  ctx.quadraticCurveTo(w * 0.18, h * 0.92, w * 0.1, h * 0.55);
+  ctx.bezierCurveTo(w * 0.02, h * 0.3, w * 0.08, h * 0.1, w * 0.2, h * 0.08);
+  ctx.closePath();
+  fillInk(ctx, pal.body, 0.9);
+  ctx.beginPath();
+  ctx.ellipse(w * 0.48, h * (0.48 + gape / h), w * 0.22, h * (0.16 + gape / h), 0.1, 0, Math.PI * 2);
+  fillInk(ctx, '#14080c', 0.6);
+  ctx.fillStyle = '#f3e6c4';
+  for (let i = 0; i < 5; i += 1) {
+    const tx = w * (0.32 + i * 0.07);
+    ctx.beginPath();
+    ctx.moveTo(tx, h * 0.4);
+    ctx.lineTo(tx + w * 0.03, h * (0.5 + (i % 2) * 0.04));
+    ctx.lineTo(tx + w * 0.055, h * 0.4);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(tx, h * 0.62);
+    ctx.lineTo(tx + w * 0.025, h * (0.52 - (i % 2) * 0.03));
+    ctx.lineTo(tx + w * 0.05, h * 0.62);
+    ctx.fill();
+  }
+  ctx.fillStyle = pal.dark;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.22, h * 0.3, w * 0.05, h * 0.035, 0.4, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.78, h * 0.26, w * 0.045, h * 0.05, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 0.45;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(w * 0.08, h * 0.42);
+  ctx.quadraticCurveTo(w * 0.0, h * (0.2 - gape / h), w * 0.14, h * 0.16);
+  ctx.moveTo(w * 0.86, h * 0.48);
+  ctx.quadraticCurveTo(w * 0.98, h * 0.7, w * 0.78, h * 0.62);
+  ctx.stroke();
+}
+
+function paintMaw(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number, pal: Palette): void {
+  const swing = frame ? 1.5 : -1.5;
+  const arms = [
+    [0.12, 0.34, 0.08, 0.95],
+    [0.28, 0.42, 0.22, 0.98],
+    [0.7, 0.4, 0.78 + swing * 0.02, 0.9],
+    [0.86, 0.3, 0.96, 0.72],
+  ];
+  ctx.strokeStyle = pal.dark;
+  ctx.lineWidth = 1.3;
+  ctx.lineCap = 'round';
+  for (const arm of arms) {
+    ctx.beginPath();
+    ctx.moveTo(w * arm[0], h * arm[1]);
+    ctx.quadraticCurveTo(w * ((arm[0] + arm[2]) / 2 + swing * 0.02), h * 0.7, w * arm[2], h * arm[3]);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, h * 0.4, w * 0.28, h * 0.32, 0.15, 0, Math.PI * 2);
+  fillInk(ctx, pal.body, 0.85);
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, h * 0.42, w * 0.16, h * 0.18, 0.1, 0, Math.PI * 2);
+  fillInk(ctx, '#1c0a0e', 0.55);
+  ctx.strokeStyle = '#f6edd4';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.ellipse(w * 0.5, h * 0.42, w * 0.11, h * 0.12, 0.1, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function paintUfo(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  const cx = w / 2;
+  const cy = h * 0.58;
+  const vane = (x: number, dir: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x, cy - h * 0.02);
+    ctx.lineTo(x + dir * w * 0.02, h * 0.02);
+    ctx.lineTo(x + dir * w * 0.07, h * 0.1);
+    ctx.lineTo(x + dir * w * 0.015, cy + h * 0.02);
+    ctx.closePath();
+    fillInk(ctx, '#f59e0b', 0.4);
+  };
+  vane(w * 0.14, -1);
+  vane(w * 0.86, 1);
+  ctx.beginPath();
+  ctx.ellipse(w * 0.05, cy, w * 0.045, h * 0.16, 0, 0, Math.PI * 2);
+  ctx.ellipse(w * 0.95, cy, w * 0.045, h * 0.16, 0, 0, Math.PI * 2);
+  fillInk(ctx, '#4b5568', 0.4);
+
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w * 0.38, h * 0.4, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#7f97b0';
   ctx.fill();
   ctx.save();
-  trace();
   ctx.clip();
-  ctx.fillStyle = light;
+  ctx.fillStyle = '#d5e2ee';
+  ctx.fillRect(cx - w * 0.4, cy - h * 0.42, w * 0.26, h * 0.84);
+  ctx.fillStyle = '#4e647c';
+  ctx.fillRect(cx + w * 0.06, cy - h * 0.2, w * 0.32, h * 0.62);
+  ctx.restore();
+  ink(ctx, 0.75);
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
   ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.2, w * 0.42, h * 0.26, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = dark;
-  ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.96, w * 0.5, h * 0.24, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy - h * 0.02, w * 0.16, h * 0.18, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
-  trace();
-  stroke(ctx, width);
-}
-
-function eye(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
   ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#f8fafc';
+  ctx.ellipse(cx, cy - h * 0.02, w * 0.16, h * 0.18, 0, 0, Math.PI * 2);
+  ink(ctx, 0.65);
+
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + h * 0.06, w * 0.055, h * 0.16, 0, 0, Math.PI * 2);
+  fillInk(ctx, '#1e3a5f', 0.4);
+  ctx.fillStyle = '#7dd3fc';
+  ctx.beginPath();
+  ctx.ellipse(cx - w * 0.012, cy + h * 0.02, w * 0.016, h * 0.04, -0.5, 0, Math.PI * 2);
   ctx.fill();
-  stroke(ctx, 1);
-  ctx.beginPath();
-  ctx.arc(x + r * 0.25, y, r * 0.38, 0, Math.PI * 2);
-  ctx.fillStyle = '#020617';
-  ctx.fill();
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillRect(cx - w * 0.035, cy - h * 0.28, w * 0.012, h * 0.12);
+  ctx.fillRect(cx + w * 0.02, cy - h * 0.28, w * 0.012, h * 0.12);
 }
 
-function squid(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number): void {
-  const swing = frame ? 1.8 : -1.8;
-  const cx = w / 2;
-  ctx.beginPath();
-  ctx.moveTo(cx, 1);
-  ctx.bezierCurveTo(w * 0.78, h * 0.02, w * 0.98, h * 0.28, w * 0.88, h * 0.5);
-  ctx.quadraticCurveTo(w * 0.78, h * 0.66, w * 0.66, h * 0.7);
-  ctx.quadraticCurveTo(w * 0.8, h * 0.84, w * 0.72 + swing, h - 1);
-  ctx.quadraticCurveTo(w * 0.58, h * 0.78, cx, h * 0.74);
-  ctx.quadraticCurveTo(w * 0.42, h * 0.78, w * 0.28 - swing, h - 1);
-  ctx.quadraticCurveTo(w * 0.2, h * 0.84, w * 0.34, h * 0.7);
-  ctx.quadraticCurveTo(w * 0.22, h * 0.66, w * 0.12, h * 0.5);
-  ctx.bezierCurveTo(w * 0.02, h * 0.28, w * 0.22, h * 0.02, cx, 1);
-  ctx.closePath();
+function paintWing(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+  pod(ctx, w * 0.08, h * 0.02, w * 0.84, h * 0.96, 1);
 }
 
-function crab(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number): void {
-  const open = frame ? 0.16 : 0.04;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.28, h * 0.34);
-  ctx.bezierCurveTo(w * 0.08, h * 0.16, w * open, h * 0.42, w * 0.06, h * 0.58);
-  ctx.bezierCurveTo(w * 0.14, h * 0.7, w * 0.24, h * 0.62, w * 0.3, h * 0.5);
-  ctx.bezierCurveTo(w * 0.18, h * 0.62, w * 0.22, h * 0.86, w * 0.34, h * 0.9);
-  ctx.bezierCurveTo(w * 0.42, h * 0.78, w * 0.4, h * 0.58, w * 0.36, h * 0.42);
-  ctx.bezierCurveTo(w * 0.42, h * 0.22, w * 0.58, h * 0.22, w * 0.64, h * 0.42);
-  ctx.bezierCurveTo(w * 0.6, h * 0.58, w * 0.58, h * 0.78, w * 0.66, h * 0.9);
-  ctx.bezierCurveTo(w * 0.78, h * 0.86, w * 0.82, h * 0.62, w * 0.7, h * 0.5);
-  ctx.bezierCurveTo(w * 0.76, h * 0.62, w * 0.86, h * 0.7, w * 0.94, h * 0.58);
-  ctx.bezierCurveTo(w * (1 - open), h * 0.42, w * 0.92, h * 0.16, w * 0.72, h * 0.34);
-  ctx.bezierCurveTo(w * 0.64, h * 0.16, w * 0.36, h * 0.16, w * 0.28, h * 0.34);
-  ctx.closePath();
-}
-
-function octopus(ctx: CanvasRenderingContext2D, w: number, h: number, frame: number): void {
-  const swing = frame ? 2.2 : -2.2;
-  const cx = w / 2;
-  ctx.beginPath();
-  ctx.moveTo(cx, 1.5);
-  ctx.bezierCurveTo(w * 0.86, h * 0.02, w * 0.98, h * 0.36, w * 0.84, h * 0.52);
-  ctx.quadraticCurveTo(w * 0.9, h * 0.78, w * 0.78 + swing, h - 1);
-  ctx.quadraticCurveTo(w * 0.68, h * 0.72, w * 0.62, h * 0.62);
-  ctx.quadraticCurveTo(w * 0.66, h * 0.9, cx + swing * 0.3, h - 1);
-  ctx.quadraticCurveTo(w * 0.42, h * 0.72, w * 0.38, h * 0.62);
-  ctx.quadraticCurveTo(w * 0.32, h * 0.9, w * 0.22 - swing, h - 1);
-  ctx.quadraticCurveTo(w * 0.1, h * 0.78, w * 0.16, h * 0.52);
-  ctx.bezierCurveTo(w * 0.02, h * 0.36, w * 0.14, h * 0.02, cx, 1.5);
-  ctx.closePath();
-}
-
-/** Smooth alien inside the 40×30 hit box. The two march frames only move the limbs. */
+/** Provisional alien. Not the design the player will pick from the 3×3 board. */
 export function drawAlienCraft(
   ctx: CanvasRenderingContext2D,
   type: number,
@@ -111,54 +370,32 @@ export function drawAlienCraft(
   h: number,
   palette: Palette
 ): void {
-  ctx.save();
-  ctx.translate(x, y);
-  const trace = () => {
-    if (type % 3 === 1) crab(ctx, w, h, frame);
-    else if (type % 3 === 2) octopus(ctx, w, h, frame);
-    else squid(ctx, w, h, frame);
-  };
-  paintCel(ctx, trace, palette.light, palette.body, palette.dark, 1.25, w, h);
-  if (type % 3 === 1) {
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.25;
-    ctx.beginPath();
-    ctx.moveTo(w * 0.38, h * 0.2);
-    ctx.quadraticCurveTo(w * 0.34, 0, w * 0.28, 1);
-    ctx.moveTo(w * 0.62, h * 0.2);
-    ctx.quadraticCurveTo(w * 0.66, 0, w * 0.72, 1);
-    ctx.stroke();
-  }
-  const eyeY = h * 0.4;
-  const eyeR = Math.max(1.6, w * 0.07);
-  eye(ctx, w * 0.38, eyeY, eyeR);
-  eye(ctx, w * 0.62, eyeY, eyeR);
-  ctx.restore();
+  const kind = type % 3;
+  const step = frame ? 1 : 0;
+  blit(ctx, `alien-${kind}-${step}-${palette.body}`, x, y, w, h, (pen, pw, ph) => {
+    if (kind === 1) paintBlind(pen, pw, ph, step, palette);
+    else if (kind === 2) paintMaw(pen, pw, ph, step, palette);
+    else paintSlit(pen, pw, ph, step, palette);
+  });
 }
 
-/** Escort pod. Curves, not the 8×6 block map. */
+/** Side pod from the front gunship, not a separate cartoon. */
 export function drawWingCraft(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
-  ctx.save();
-  ctx.translate(x, y);
-  const trace = () => {
-    ctx.beginPath();
-    ctx.moveTo(w * 0.5, 1);
-    ctx.bezierCurveTo(w * 0.78, 1, w * 0.92, h * 0.28, w * 0.86, h * 0.48);
-    ctx.bezierCurveTo(w * 0.96, h * 0.7, w * 0.78, h - 1, w * 0.5, h - 1);
-    ctx.bezierCurveTo(w * 0.22, h - 1, w * 0.04, h * 0.7, w * 0.14, h * 0.48);
-    ctx.bezierCurveTo(w * 0.08, h * 0.28, w * 0.22, 1, w * 0.5, 1);
-    ctx.closePath();
-  };
-  paintCel(ctx, trace, '#ecfeff', '#22d3ee', '#0e7490', 1.2, w, h);
-  ctx.fillStyle = '#f8fafc';
-  ctx.beginPath();
-  ctx.ellipse(w * 0.5, h * 0.22, w * 0.1, h * 0.12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  stroke(ctx, 1);
-  ctx.restore();
+  blit(ctx, `wing-${Math.round(w)}-${Math.round(h)}`, x, y, w, h, paintWing);
 }
 
-/** Player gunship inside the 50×40 hit box. Nose points up. */
+/** Ring craft pressed into the saucer box: ring, cockpit, orange vanes. */
+export function drawUfoCraft(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  blit(ctx, `ufo-${Math.round(w)}-${Math.round(h)}`, x, y, w, h, paintUfo);
+}
+
+/** Front gunship: spine, canopy, twin pods, bronze bells. Flames stay live. */
 export function drawPlayerCraft(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -168,56 +405,50 @@ export function drawPlayerCraft(
   time: number,
   twin: boolean
 ): void {
+  blit(ctx, `player-${Math.round(w)}-${Math.round(h)}`, x, y, w, h, paintPlayer);
+  const glow = 0.45 + 0.55 * Math.abs(Math.sin(time * 22));
   ctx.save();
-  ctx.translate(x, y);
-  const trace = () => {
-    const cx = w / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, 1);
-    ctx.bezierCurveTo(cx + w * 0.1, h * 0.16, cx + w * 0.16, h * 0.24, cx + w * 0.2, h * 0.4);
-    ctx.lineTo(w - 1, h * 0.58);
-    ctx.bezierCurveTo(w + 1, h * 0.74, w * 0.82, h * 0.9, w * 0.68, h * 0.78);
-    ctx.lineTo(cx + w * 0.1, h * 0.7);
-    ctx.quadraticCurveTo(cx + w * 0.08, h - 1, cx, h * 0.86);
-    ctx.quadraticCurveTo(cx - w * 0.08, h - 1, cx - w * 0.1, h * 0.7);
-    ctx.lineTo(w * 0.32, h * 0.78);
-    ctx.bezierCurveTo(w * 0.18, h * 0.9, -1, h * 0.74, 1, h * 0.58);
-    ctx.lineTo(cx - w * 0.2, h * 0.4);
-    ctx.bezierCurveTo(cx - w * 0.16, h * 0.24, cx - w * 0.1, h * 0.16, cx, 1);
-    ctx.closePath();
-  };
-  paintCel(ctx, trace, '#f8fafc', '#d5dde4', '#5c6b78', 1.4, w, h);
-  ctx.fillStyle = '#f97316';
+  ctx.globalAlpha = 0.35 + glow * 0.55;
+  ctx.fillStyle = glow > 0.7 ? '#fdba74' : '#fb923c';
   ctx.beginPath();
-  ctx.moveTo(w * 0.32, h * 0.48);
-  ctx.lineTo(w * 0.68, h * 0.48);
-  ctx.lineTo(w * 0.6, h * 0.58);
-  ctx.lineTo(w * 0.4, h * 0.58);
-  ctx.closePath();
+  ctx.ellipse(x + w * 0.16, y + h * 0.96, 2.2, 3.1 + glow, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + w * 0.84, y + h * 0.96, 2.2, 3.1 + glow, 0, 0, Math.PI * 2);
   ctx.fill();
-  stroke(ctx, 1);
-  ctx.fillStyle = '#38bdf8';
-  ctx.beginPath();
-  ctx.ellipse(w / 2, h * 0.32, w * 0.11, h * 0.16, 0, 0, Math.PI * 2);
-  ctx.fill();
-  stroke(ctx, 1.1);
+  ctx.restore();
+  if (!twin) return;
   ctx.fillStyle = '#e0f2fe';
   ctx.beginPath();
-  ctx.ellipse(w / 2 - 1, h * 0.28, w * 0.045, h * 0.06, -0.4, 0, Math.PI * 2);
+  ctx.ellipse(x + w * 0.1, y + h * 0.4, 1.3, 1.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + w * 0.9, y + h * 0.4, 1.3, 1.8, 0, 0, Math.PI * 2);
   ctx.fill();
-  const glow = 0.55 + 0.45 * Math.sin(time * 28);
-  ctx.fillStyle = glow > 0.5 ? '#fdba74' : '#fb923c';
-  ctx.beginPath();
-  ctx.ellipse(w * 0.22, h * 0.7, 2.2, 3.2, 0, 0, Math.PI * 2);
-  ctx.ellipse(w * 0.78, h * 0.7, 2.2, 3.2, 0, 0, Math.PI * 2);
-  ctx.fill();
-  if (twin) {
-    ctx.fillStyle = '#fde68a';
-    ctx.beginPath();
-    ctx.ellipse(w * 0.08, h * 0.52, 1.6, 2.4, 0, 0, Math.PI * 2);
-    ctx.ellipse(w * 0.92, h * 0.52, 1.6, 2.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    stroke(ctx, 1);
-  }
-  ctx.restore();
+  ink(ctx, 0.55);
+}
+
+export const SHIP_PANEL_W = 1200;
+export const SHIP_PANEL_H = 600;
+
+/** Comparison sheet: gameplay size, twice that, and four times, without overlap. */
+export function drawShipPanel(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = '#07111f';
+  ctx.fillRect(0, 0, SHIP_PANEL_W, SHIP_PANEL_H);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '14px sans-serif';
+  ctx.fillText('1×, 2× e 4×. Nave, disco e escolta seguem as folhas. Aliens à esquerda são provisórios.', 16, 22);
+  const place = (scale: number, top: number) => {
+    const aw = 40 * scale;
+    const ah = 30 * scale;
+    const gap = 18;
+    ALIEN_PALETTES.forEach((palette, index) => {
+      const x = 16 + index * (aw + gap);
+      drawAlienCraft(ctx, index, 0, x, top, aw, ah, palette);
+      drawAlienCraft(ctx, index, 1, x, top + ah + 6, aw, ah, palette);
+    });
+    const ax = 16 + 3 * (aw + gap) + 28;
+    drawPlayerCraft(ctx, ax, top, 50 * scale, 40 * scale, 0.4, true);
+    drawUfoCraft(ctx, ax + 50 * scale + 28, top + 8 * scale, 60 * scale, 25 * scale);
+    drawWingCraft(ctx, ax + 50 * scale + 60 * scale + 56, top + 4 * scale, 24 * scale, 18 * scale);
+  };
+  place(1, 36);
+  place(2, 130);
+  place(4, 310);
 }
