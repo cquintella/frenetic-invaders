@@ -30,11 +30,9 @@ export const WING_LIFE = 20;
 export const WING_COOLDOWN = 0.52;
 /** One shared pool. A paired volley still spends a single charge. */
 export const WING_SHOTS = 6;
-export const WING_BOMB_SPEED = 340;
-export const WING_BOMB_WIDTH = 12;
-export const WING_BOMB_HEIGHT = 16;
-/** Applied once at detonation. Smaller than the enemy bomb's growing blast. */
-export const WING_BOMB_RADIUS = 52;
+/** Teardrop width is 40% of the previous girth. The length stays 26px at rest. */
+export const PLASMA_WIDTH_SCALE = 0.4;
+export const PLASMA_GIRTH = 7.2 * PLASMA_WIDTH_SCALE;
 export const TWIN_LIFE = 18;
 export const TWIN_SPREAD = 16;
 export const SHIELD_MAX = 5;

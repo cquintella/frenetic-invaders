@@ -5,6 +5,7 @@ import { GameState, Score } from './types';
 import { soundService } from './services/soundService';
 import { rankScores } from './scores/topScores';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, STEP } from './game/constants';
+import { frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
 import { GameEngine } from './game/engine';
 import type { HudSnapshot } from './game/types';
 import { GameLogo, OpeningBackdrop } from './title/Opening';
@@ -215,6 +216,7 @@ export default function App() {
     const next = !pausedRef.current;
     pausedRef.current = next;
     setPaused(next);
+    if (next) engineRef.current?.clearKeys();
     soundService.unlock();
     soundService.setTransportPaused(next);
   };
@@ -235,16 +237,18 @@ export default function App() {
     const engine = engineRef.current;
     if (!engine) return;
     const down = (event: KeyboardEvent) => {
-      const tag = (event.target as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const tag = (event.target as HTMLElement | null)?.tagName ?? null;
+      if (pauseKeyAccepted({ code: event.code, repeat: event.repeat, targetTag: tag, screen: stateRef.current })) {
+        event.preventDefault();
+        pauseRef.current();
+        return;
+      }
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (event.code === 'KeyM') {
         muteRef.current();
         return;
       }
-      if (event.code === 'KeyP') {
-        pauseRef.current();
-        return;
-      }
+      if (event.code === 'KeyP') return;
       if (event.code === 'BracketLeft') {
         volumeRef.current(-0.1);
         return;
@@ -253,7 +257,7 @@ export default function App() {
         volumeRef.current(0.1);
         return;
       }
-      if (pausedRef.current) return;
+      if (!gameplayKeyAllowed(pausedRef.current, tag)) return;
       engine.setKey(event.code, true);
       if (event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
     };
@@ -298,13 +302,13 @@ export default function App() {
     };
 
     const loop = (now: number) => {
-      if (pausedRef.current) {
-        last = now;
+      const step = frameStep(last, now, pausedRef.current);
+      last = step.last;
+      if (step.dt === 0) {
         raf = requestAnimationFrame(loop);
         return;
       }
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
+      const dt = step.dt;
       acc += dt;
       let steps = 0;
       let snap = engine.snapshot();
@@ -463,13 +467,14 @@ export default function App() {
 
           {paused && gameState === 'PLAYING' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55">
-              <div className="font-mono text-4xl font-black tracking-[0.35em] text-white">PAUSED</div>
+              <div className="font-mono text-4xl font-black tracking-[0.35em] text-white">PAUSADO</div>
+              <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.28em] text-green-200">P retoma</div>
               <button
                 type="button"
                 onClick={() => pauseRef.current()}
                 className="mt-6 border border-green-400 px-8 py-3 font-bold text-green-100"
               >
-                RESUME
+                RETOMA
               </button>
             </div>
           )}
@@ -539,7 +544,7 @@ export default function App() {
             </div>
           </div>
           <p className="mt-4 max-w-md text-center font-mono text-[10px] uppercase leading-relaxed tracking-widest text-green-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-            M mute · P pause · [ ] volume. Side cannons drop six bomb volleys. Twin plasma stays until a real hit.
+            M mute · P pausa · [ ] volume. Side cannons fire the saucer bomb, six volleys. Twin plasma stays until a real hit.
           </p>
         </div>
       )}
@@ -599,7 +604,7 @@ export default function App() {
         </label>
         {gameState === 'PLAYING' && (
           <button type="button" onClick={() => pauseRef.current()}>
-            {paused ? 'RESUME' : 'PAUSE'}
+            {paused ? 'P · RETOMA' : 'P · PAUSA'}
           </button>
         )}
       </div>

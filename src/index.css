@@ -19,7 +19,7 @@
 }
 
 .game-canvas {
-  image-rendering: pixelated;
+  image-rendering: auto;
 }
 
 .title-screen {

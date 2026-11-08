@@ -40,10 +40,13 @@ export interface Bullet extends Entity {
 
 export interface Bomb extends Entity {
   active: boolean;
+  /** Pixels per second. Negative climbs (side cannon). Positive falls (saucer and dive). */
   speed: number;
   exploding: boolean;
   /** Seconds left in the blast. */
   explosionTimer: number;
+  /** Omitted bombs are enemy bombs, matching the saucer projectile. */
+  owner?: 'enemy' | 'player';
 }
 
 export interface LaserBeam {
@@ -84,12 +87,6 @@ export interface WingCannon {
   y: number;
   width: number;
   height: number;
-}
-
-/** Player bomb from the side cannons. Damage is applied once, not per frame. */
-export interface WingBomb extends Entity {
-  active: boolean;
-  speed: number;
 }
 
 export interface Blast {
@@ -226,7 +223,6 @@ export interface World {
   bullets: Bullet[];
   enemyBullets: Bullet[];
   bombs: Bomb[];
-  wingBombs: WingBomb[];
   beams: LaserBeam[];
   ufo: Ufo | null;
   pickups: Pickup[];

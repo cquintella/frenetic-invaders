@@ -2,103 +2,22 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   LASER_MAX,
+  PLASMA_GIRTH,
   PLAYER_HEIGHT,
   PLAYER_WIDTH,
   SHIELD_MAX,
   WING_SHOTS,
 } from './constants';
 import { prefersReducedMotion } from './motion';
-import {
-  ALIEN_FRAMES,
-  ALIEN_PALETTES,
-  celShade,
-  PLAYER_COLORS,
-  PLAYER_COLS,
-  PLAYER_MAP,
-  PLAYER_ROWS,
-  SHIP_INK_PX,
-  WING_COLORS,
-  WING_MAP,
-} from './sprites';
+import { ALIEN_PALETTES } from './sprites';
+import { drawAlienCraft, drawPlayerCraft, drawWingCraft } from './shipArt';
 import { drawSky } from './sky';
 import type { World } from './types';
 
-type Edge = 'light' | 'body' | 'dark';
-
-function edgeOf(map: readonly number[], cols: number, index: number): Edge {
-  const row = Math.floor(index / cols);
-  const rows = map.length / cols;
-  const above = row > 0 ? map[index - cols] : 0;
-  const below = row < rows - 1 ? map[index + cols] : 0;
-  if (!above) return 'light';
-  if (!below) return 'dark';
-  return 'body';
-}
-
-function drawBitmap(
-  ctx: CanvasRenderingContext2D,
-  map: readonly number[],
-  cols: number,
-  x: number,
-  y: number,
-  pixelW: number,
-  pixelH: number,
-  colorOf: (value: number, edge: Edge) => string | null
-): void {
-  const rows = map.length / cols;
-  const ink = SHIP_INK_PX;
-  ctx.fillStyle = '#000';
-  for (let index = 0; index < map.length; index++) {
-    if (!map[index]) continue;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const left = col > 0 ? map[index - 1] : 0;
-    const right = col < cols - 1 ? map[index + 1] : 0;
-    const above = row > 0 ? map[index - cols] : 0;
-    const below = row < rows - 1 ? map[index + cols] : 0;
-    const x0 = x + col * pixelW;
-    const y0 = y + row * pixelH;
-    if (!left) ctx.fillRect(x0 - ink, y0, ink, pixelH);
-    if (!right) ctx.fillRect(x0 + pixelW, y0, ink, pixelH);
-    if (!above) ctx.fillRect(x0, y0 - ink, pixelW, ink);
-    if (!below) ctx.fillRect(x0, y0 + pixelH, pixelW, ink);
-    if (!left && !above) ctx.fillRect(x0 - ink, y0 - ink, ink, ink);
-    if (!right && !above) ctx.fillRect(x0 + pixelW, y0 - ink, ink, ink);
-    if (!left && !below) ctx.fillRect(x0 - ink, y0 + pixelH, ink, ink);
-    if (!right && !below) ctx.fillRect(x0 + pixelW, y0 + pixelH, ink, ink);
-  }
-  for (let index = 0; index < map.length; index++) {
-    const value = map[index] ?? 0;
-    if (value === 0) continue;
-    const color = colorOf(value, edgeOf(map, cols, index));
-    if (!color) continue;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    ctx.fillStyle = color;
-    ctx.fillRect(x + col * pixelW, y + row * pixelH, pixelW, pixelH);
-  }
-}
-
 function paintInvader(ctx: CanvasRenderingContext2D, world: World, inv: World['invaders'][number], x: number, y: number): void {
-  const frames = ALIEN_FRAMES[inv.type % ALIEN_FRAMES.length];
-  const map = frames?.[world.anim] ?? frames?.[0];
   const palette = ALIEN_PALETTES[inv.type % ALIEN_PALETTES.length];
-  if (!map || !palette) return;
-  const pw = inv.width / 8;
-  const ph = inv.height / 8;
-  const shaded = celShade(map, 8);
-  drawBitmap(ctx, shaded, 8, x, y, pw, ph, (value, edge) => {
-    if (value === 3) return palette.light;
-    if (value === 2) return palette.dark;
-    return palette[edge];
-  });
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(x + 2 * pw, y + 3 * ph, pw, ph);
-  ctx.fillRect(x + 5 * pw, y + 3 * ph, pw, ph);
-  ctx.fillStyle = '#000';
-  const pupil = Math.max(1, Math.min(pw, ph) * 0.4);
-  ctx.fillRect(x + 3 * pw - pupil, y + 3 * ph, pupil, pupil);
-  ctx.fillRect(x + 6 * pw - pupil, y + 3 * ph, pupil, pupil);
+  if (!palette) return;
+  drawAlienCraft(ctx, inv.type, world.anim, x, y, inv.width, inv.height, palette);
 }
 
 function drawInvaders(ctx: CanvasRenderingContext2D, world: World): void {
@@ -178,10 +97,12 @@ function drawUfo(ctx: CanvasRenderingContext2D, world: World): void {
   const blink = Math.floor(world.time * 6);
   for (let i = 0; i < 3; i++) {
     ctx.fillStyle = lights[(blink + i) % lights.length] ?? '#fff';
-    ctx.fillRect(12 + i * 14, h / 2 + 1, 5, 4);
+    ctx.beginPath();
+    ctx.arc(15 + i * 14, h / 2 + 3, 2.4, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(12 + i * 14, h / 2 + 1, 5, 4);
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -234,9 +155,9 @@ function drawPlasma(
   const cx = x + w / 2;
   const cy = y + h / 2;
   const pulse = 0.86 + 0.14 * Math.sin(time * 14 + cx * 0.37);
-  // Drawn larger than the 4×12 hit box. Collision stays on the rect.
+  // Length stays. Width, core and glow are 40% of the previous teardrop.
   const reach = 26 * pulse;
-  const girth = 7.2 * pulse;
+  const girth = PLASMA_GIRTH * pulse;
   ctx.save();
   ctx.translate(cx, cy);
   if (!pointUp) ctx.rotate(Math.PI);
@@ -260,7 +181,7 @@ function drawPlasma(
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
   ctx.stroke();
   ctx.beginPath();
-  ctx.ellipse(0, reach * 0.02, Math.max(1.2, girth * 0.28), reach * 0.34, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, reach * 0.02, Math.max(0.48, girth * 0.28), reach * 0.34, 0, 0, Math.PI * 2);
   ctx.fillStyle = core;
   ctx.fill();
   ctx.restore();
@@ -296,61 +217,30 @@ function drawBeams(ctx: CanvasRenderingContext2D, world: World): void {
 
 function drawBombs(ctx: CanvasRenderingContext2D, world: World): void {
   for (const bomb of world.bombs) {
-    if (!bomb.active) continue;
-    if (!bomb.exploding) {
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillRect(bomb.x + bomb.width * 0.3, bomb.y + bomb.height * 0.2, bomb.width * 0.4, bomb.height * 0.5);
-      ctx.fillStyle = '#ef4444';
-      ctx.beginPath();
-      ctx.moveTo(bomb.x + bomb.width * 0.3, bomb.y + bomb.height * 0.7);
-      ctx.lineTo(bomb.x + bomb.width * 0.7, bomb.y + bomb.height * 0.7);
-      ctx.lineTo(bomb.x + bomb.width * 0.5, bomb.y + bomb.height);
-      ctx.fill();
-      const flame = 6 + Math.sin(world.time * 40) * 4;
-      ctx.fillStyle = '#fb923c';
-      ctx.beginPath();
-      ctx.moveTo(bomb.x + bomb.width * 0.4, bomb.y + bomb.height * 0.2);
-      ctx.lineTo(bomb.x + bomb.width * 0.6, bomb.y + bomb.height * 0.2);
-      ctx.lineTo(bomb.x + bomb.width * 0.5, bomb.y + bomb.height * 0.2 - flame);
-      ctx.fill();
-      continue;
-    }
-  }
-}
-
-function drawWingBombs(ctx: CanvasRenderingContext2D, world: World): void {
-  for (const bomb of world.wingBombs) {
-    if (!bomb.active) continue;
-    const x = bomb.x;
-    const y = bomb.y;
+    if (!bomb.active || bomb.exploding) continue;
     const w = bomb.width;
     const h = bomb.height;
     ctx.save();
-    ctx.translate(x + w / 2, y + h / 2 - 12);
-    ctx.globalAlpha = 0.45;
-    ctx.fillStyle = '#fb923c';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, w * 0.85, h * 0.72, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.translate(bomb.x + w / 2, bomb.y + h / 2);
+    if (bomb.speed < 0) ctx.scale(1, -1);
     ctx.fillStyle = '#e2e8f0';
-    ctx.fillRect(-w * 0.22, -h * 0.2, w * 0.44, h * 0.46);
+    ctx.fillRect(-w * 0.2, -h * 0.3, w * 0.4, h * 0.5);
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
-    ctx.strokeRect(-w * 0.22, -h * 0.2, w * 0.44, h * 0.46);
+    ctx.strokeRect(-w * 0.2, -h * 0.3, w * 0.4, h * 0.5);
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.moveTo(-w * 0.22, -h * 0.2);
-    ctx.lineTo(w * 0.22, -h * 0.2);
-    ctx.lineTo(0, -h * 0.55);
+    ctx.moveTo(-w * 0.2, h * 0.2);
+    ctx.lineTo(w * 0.2, h * 0.2);
+    ctx.lineTo(0, h * 0.5);
     ctx.fill();
     ctx.stroke();
-    const flame = 4 + Math.sin(world.time * 30 + x) * 2;
+    const flame = 6 + Math.sin(world.time * 40 + bomb.x) * 4;
     ctx.fillStyle = '#fb923c';
     ctx.beginPath();
-    ctx.moveTo(-w * 0.12, h * 0.26);
-    ctx.lineTo(w * 0.12, h * 0.26);
-    ctx.lineTo(0, h * 0.26 + flame);
+    ctx.moveTo(-w * 0.1, -h * 0.3);
+    ctx.lineTo(w * 0.1, -h * 0.3);
+    ctx.lineTo(0, -h * 0.3 - flame);
     ctx.fill();
     ctx.restore();
   }
@@ -409,7 +299,7 @@ function drawWings(ctx: CanvasRenderingContext2D, world: World): void {
   for (const wing of world.wings) {
     const x = Math.round(wing.x);
     const y = Math.round(wing.y);
-    drawBitmap(ctx, WING_MAP, 8, x, y, 3, 3, (value, edge) => WING_COLORS[value]?.[edge] ?? null);
+    drawWingCraft(ctx, x, y, wing.width, wing.height);
     const ratio = WING_SHOTS <= 0 ? 0 : world.wingShots / WING_SHOTS;
     ctx.fillStyle = 'rgba(8, 47, 73, 0.8)';
     ctx.fillRect(x, y + wing.height + 2, wing.width, 2);
@@ -440,20 +330,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, world: World): void {
 
   const hidden = world.iframe > 0 && Math.floor(world.time * 14) % 2 === 0;
   if (!hidden) {
-    const pixel = 3;
-    const spriteW = PLAYER_COLS * pixel;
-    const spriteH = PLAYER_ROWS * pixel;
-    const sx = x + Math.round((PLAYER_WIDTH - spriteW) / 2);
-    const sy = y + PLAYER_HEIGHT - spriteH;
-    drawBitmap(ctx, PLAYER_MAP, PLAYER_COLS, sx, sy, pixel, pixel, (value, edge) => PLAYER_COLORS[value]?.[edge] ?? null);
-    ctx.fillStyle = Math.sin(world.time * 28) > 0 ? '#fdba74' : '#fb923c';
-    ctx.fillRect(sx + 2 * pixel, sy + 7 * pixel, pixel, pixel * 2);
-    ctx.fillRect(sx + 13 * pixel, sy + 7 * pixel, pixel, pixel * 2);
-    if (world.twin > 0) {
-      ctx.fillStyle = '#fde68a';
-      ctx.fillRect(sx, sy + 6 * pixel, pixel, pixel * 2);
-      ctx.fillRect(sx + 15 * pixel, sy + 6 * pixel, pixel, pixel * 2);
-    }
+    drawPlayerCraft(ctx, x, y, PLAYER_WIDTH, PLAYER_HEIGHT, world.time, world.twin > 0);
   }
 }
 
@@ -541,7 +418,8 @@ function drawHud(ctx: CanvasRenderingContext2D, world: World): void {
 }
 
 export function drawWorld(ctx: CanvasRenderingContext2D, world: World): void {
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.save();
   if (!prefersReducedMotion() && world.shake > 0.4) {
     ctx.translate((Math.random() - 0.5) * world.shake * 2, (Math.random() - 0.5) * world.shake * 2);
@@ -556,7 +434,6 @@ export function drawWorld(ctx: CanvasRenderingContext2D, world: World): void {
   drawFriendlyBullets(ctx, world);
   drawWings(ctx, world);
   drawPlayer(ctx, world);
-  drawWingBombs(ctx, world);
   drawBlasts(ctx, world);
   drawParticles(ctx, world);
   drawFloaters(ctx, world);

@@ -43,11 +43,13 @@ test('a shot detonates the enemy bomb once and the blast cleans up', () => {
     speed: 0,
     owner: 'player',
   });
-  const before = soundService.bombPlays;
+  const before = soundService.bombCues;
   engine.update(1 / 60);
   assert.equal(engine.world.bombs[0]?.exploding, true);
   assert.equal(engine.world.blasts.length, 1);
-  assert.equal(soundService.bombPlays, before + 1);
+  assert.equal(soundService.bombCues, before + 1);
+  engine.update(1 / 60);
+  assert.equal(soundService.bombCues, before + 1);
   engine.update(1 / 60);
   assert.equal(engine.world.blasts.length, 1);
   for (let i = 0; i < 80; i += 1) engine.update(1 / 60);

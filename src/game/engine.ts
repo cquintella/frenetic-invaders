@@ -5,10 +5,6 @@ import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   EXPLOSION_TIME,
-  WING_BOMB_HEIGHT,
-  WING_BOMB_RADIUS,
-  WING_BOMB_SPEED,
-  WING_BOMB_WIDTH,
   WING_SHOTS,
   INVADER_HEIGHT,
   INVADER_WIDTH,
@@ -42,7 +38,7 @@ import { drawWorld } from './draw';
 import { createSky, updateSky } from './sky';
 import { rollPickup, ufoPoints } from './drops';
 import { ALIEN_PALETTES } from './sprites';
-import type { Bullet, Entity, HudSnapshot, Invader, PickupKind, Ufo, WingBomb, WingCannon, World } from './types';
+import type { Bomb, Bullet, Entity, HudSnapshot, Invader, PickupKind, Ufo, WingCannon, World } from './types';
 import { soundService } from '../services/soundService';
 
 function clamp(value: number, min: number, max: number): number {
@@ -72,7 +68,6 @@ export class GameEngine {
       bullets: [],
       enemyBullets: [],
       bombs: [],
-      wingBombs: [],
       beams: [],
       ufo: null,
       pickups: [],
@@ -114,7 +109,6 @@ export class GameEngine {
     world.bullets = [];
     world.enemyBullets = [];
     world.bombs = [];
-    world.wingBombs = [];
     world.beams = [];
     world.ufo = null;
     world.pickups = [];
@@ -179,7 +173,6 @@ export class GameEngine {
     this.updateUfo(dt);
     this.updateEnemyBullets(dt);
     this.updateBombs(dt);
-    this.updateWingBombs(dt);
     if (world.over) return this.snapshot();
 
     this.updatePickups(dt);
@@ -254,7 +247,6 @@ export class GameEngine {
     world.bullets = [];
     world.enemyBullets = [];
     world.bombs = [];
-    world.wingBombs = [];
     world.beams = [];
     world.ufo = null;
     world.floaters = [];
@@ -413,16 +405,7 @@ export class GameEngine {
       const bombX = ufo.x + UFO_WIDTH / 2;
       const playerX = world.player.x + PLAYER_WIDTH / 2;
       if (Math.abs(bombX - playerX) < 100 || Math.random() < 0.05) {
-        world.bombs.push({
-          x: bombX - 10,
-          y: ufo.y + UFO_HEIGHT,
-          width: 20,
-          height: 20,
-          active: true,
-          speed: (4 + world.level * 0.3) * 60,
-          exploding: false,
-          explosionTimer: 0,
-        });
+        this.spawnBomb(bombX, ufo.y + UFO_HEIGHT, 'enemy');
       }
     }
   }
@@ -450,15 +433,24 @@ export class GameEngine {
     for (const bomb of bombs) {
       if (this.world.bombs !== bombs || this.world.over) break;
       if (!bomb.active) continue;
+      const friendly = bomb.owner === 'player';
       if (!bomb.exploding) {
         bomb.y += bomb.speed * dt;
-        for (const bullet of this.world.bullets) {
-          if (!bullet.active || !overlap(bullet, bomb)) continue;
-          bullet.active = false;
-          this.armBomb(bomb);
-          break;
+        if (friendly) {
+          if (bomb.y + bomb.height < 0) {
+            bomb.active = false;
+            continue;
+          }
+          if (this.friendlyBombHit(bomb)) this.armBomb(bomb);
+        } else {
+          for (const bullet of this.world.bullets) {
+            if (!bullet.active || bullet.owner !== 'player' || !overlap(bullet, bomb)) continue;
+            bullet.active = false;
+            this.armBomb(bomb);
+            break;
+          }
+          if (!bomb.exploding && bomb.y > this.world.player.y) this.armBomb(bomb);
         }
-        if (!bomb.exploding && bomb.y > this.world.player.y) this.armBomb(bomb);
       }
       if (!bomb.exploding) continue;
 
@@ -466,21 +458,36 @@ export class GameEngine {
       const cx = bomb.x + bomb.width / 2;
       const cy = bomb.y + bomb.height / 2;
       if (radius > 0) {
-        const body = this.playerBox();
-        const dist = Math.hypot(cx - (body.x + body.width / 2), cy - (body.y + body.height / 2));
-        if (dist < radius) {
-          bomb.active = false;
-          this.hurt();
+        if (!friendly) {
+          const body = this.playerBox();
+          const dist = Math.hypot(cx - (body.x + body.width / 2), cy - (body.y + body.height / 2));
+          if (dist < radius) {
+            bomb.active = false;
+            this.hurt();
+          }
         }
         for (const inv of this.world.invaders) {
           if (!inv.alive) continue;
           const hit = Math.hypot(cx - (inv.x + inv.width / 2), cy - (inv.y + inv.height / 2));
           if (hit < radius) this.killInvader(inv);
         }
+        const ufo = this.world.ufo;
+        if (friendly && ufo?.active) {
+          const hit = Math.hypot(cx - (ufo.x + ufo.width / 2), cy - (ufo.y + ufo.height / 2));
+          if (hit < radius) this.destroyUfo(ufo);
+        }
       }
       bomb.explosionTimer -= dt;
       if (bomb.explosionTimer <= 0) bomb.active = false;
     }
+  }
+
+  private friendlyBombHit(bomb: Bomb): boolean {
+    for (const inv of this.world.invaders) {
+      if (inv.alive && overlap(bomb, inv)) return true;
+    }
+    const ufo = this.world.ufo;
+    return Boolean(ufo?.active && overlap(bomb, ufo));
   }
 
   private updatePickups(dt: number): void {
@@ -574,7 +581,7 @@ export class GameEngine {
     this.wingCooldown = WING_COOLDOWN;
     world.wingShots -= 1;
     for (const wing of world.wings) {
-      this.spawnWingBomb(wing.x + wing.width / 2, wing.y);
+      this.spawnBomb(wing.x + wing.width / 2, wing.y - 20, 'player');
     }
     soundService.playWingShot();
     if (world.wingShots <= 0) {
@@ -583,56 +590,24 @@ export class GameEngine {
     }
   }
 
-  private spawnWingBomb(cx: number, y: number): void {
-    this.world.wingBombs.push({
-      x: cx - WING_BOMB_WIDTH / 2,
+  /**
+   * The saucer, the diving alien, and the side cannons share this projectile.
+   * Enemy bombs fall. Cannon bombs use the same body with the speed reversed,
+   * so they climb and never use the "passed the ship" detonation.
+   */
+  private spawnBomb(centerX: number, y: number, owner: Bomb['owner']): void {
+    const speed = (4 + this.world.level * 0.3) * 60;
+    this.world.bombs.push({
+      x: centerX - 10,
       y,
-      width: WING_BOMB_WIDTH,
-      height: WING_BOMB_HEIGHT,
+      width: 20,
+      height: 20,
       active: true,
-      speed: WING_BOMB_SPEED,
+      speed: owner === 'player' ? -speed : speed,
+      exploding: false,
+      explosionTimer: 0,
+      owner,
     });
-  }
-
-  /** One radius check. The drawing may linger; it does not damage again. */
-  private detonateWingBomb(bomb: WingBomb): void {
-    if (!bomb.active) return;
-    bomb.active = false;
-    const cx = bomb.x + bomb.width / 2;
-    const cy = bomb.y + bomb.height / 2;
-    for (const inv of this.world.invaders) {
-      if (!inv.alive) continue;
-      const dist = Math.hypot(cx - (inv.x + inv.width / 2), cy - (inv.y + inv.height / 2));
-      if (dist <= WING_BOMB_RADIUS) this.killInvader(inv);
-    }
-    const ufo = this.world.ufo;
-    if (ufo?.active) {
-      const dist = Math.hypot(cx - (ufo.x + ufo.width / 2), cy - (ufo.y + ufo.height / 2));
-      if (dist <= WING_BOMB_RADIUS) this.destroyUfo(ufo);
-    }
-    this.spawnBombBlast(cx, cy);
-    soundService.playBomb();
-  }
-
-  private updateWingBombs(dt: number): void {
-    for (const bomb of this.world.wingBombs) {
-      if (!bomb.active) continue;
-      bomb.y -= bomb.speed * dt;
-      if (bomb.y + bomb.height < 0) {
-        bomb.active = false;
-        continue;
-      }
-      let hit = false;
-      for (const inv of this.world.invaders) {
-        if (inv.alive && overlap(bomb, inv)) {
-          hit = true;
-          break;
-        }
-      }
-      const ufo = this.world.ufo;
-      if (!hit && ufo?.active && overlap(bomb, ufo)) hit = true;
-      if (hit) this.detonateWingBomb(bomb);
-    }
   }
 
   private armBomb(bomb: World['bombs'][number]): void {
@@ -734,16 +709,7 @@ export class GameEngine {
   }
 
   private releaseDiveBomb(inv: Invader): void {
-    this.world.bombs.push({
-      x: inv.x + inv.width / 2 - 10,
-      y: inv.y + inv.height - 4,
-      width: 20,
-      height: 20,
-      active: true,
-      speed: (4 + this.world.level * 0.3) * 60,
-      exploding: false,
-      explosionTimer: 0,
-    });
+    this.spawnBomb(inv.x + inv.width / 2, inv.y + inv.height - 4, 'enemy');
   }
 
   private marchInvaders(dt: number): void {
@@ -961,7 +927,6 @@ export class GameEngine {
     world.bullets = world.bullets.filter((bullet) => bullet.active);
     world.enemyBullets = world.enemyBullets.filter((bullet) => bullet.active);
     world.bombs = world.bombs.filter((bomb) => bomb.active);
-    world.wingBombs = world.wingBombs.filter((bomb) => bomb.active);
     world.blasts = world.blasts.filter((blast) => blast.age < blast.life);
     world.beams = world.beams.filter((beam) => beam.active);
     world.pickups = world.pickups.filter((pickup) => pickup.active);

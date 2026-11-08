@@ -1,4 +1,4 @@
-import { bombSoundLayers, type SoundLayer } from './bombSound';
+import { scheduleBombGraph } from './bombSound';
 import {
   initialPlayback,
   musicAssetUrl,
@@ -20,8 +20,12 @@ export class SoundService {
   private transportPaused = false;
   private gestureArmed = false;
   private pending = false;
+  /** Game asked for the boom, even if the context could not start. */
+  bombCues = 0;
+  /** Nodes were actually scheduled on a live context. */
   bombPlays = 0;
   musicStarts = 0;
+  private meter: AnalyserNode | null = null;
   private ufo: { osc: OscillatorNode; lfo: OscillatorNode; gain: GainNode } | null = null;
 
   private ensure(): boolean {
@@ -40,7 +44,7 @@ export class SoundService {
     comp.release.value = 0.18;
     master.connect(comp);
     comp.connect(ctx.destination);
-    const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     this.ctx = ctx;
@@ -193,6 +197,7 @@ export class SoundService {
     volume: number;
     players: number;
     bombPlays: number;
+    bombCues: number;
     musicStarts: number;
     contextState: string | null;
     transportPaused: boolean;
@@ -206,6 +211,7 @@ export class SoundService {
       volume: this.playback.volume,
       players: this.media ? 1 : 0,
       bombPlays: this.bombPlays,
+      bombCues: this.bombCues,
       musicStarts: this.musicStarts,
       contextState: this.ctx?.state ?? null,
       transportPaused: this.transportPaused,
@@ -238,38 +244,20 @@ export class SoundService {
     osc.stop(time + dur + 0.02);
   }
 
-  private playLayer(time: number, layer: SoundLayer, dest: AudioNode): void {
-    if (!this.ctx) return;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = layer.filter;
-    filter.frequency.setValueAtTime(Math.max(20, layer.filterHz), time);
-    if (layer.filterEndHz > 0) {
-      filter.frequency.exponentialRampToValueAtTime(Math.max(20, layer.filterEndHz), time + layer.dur);
+  /** Peak of the master bus. Zero when the context is silent or suspended. */
+  outputPeak(): number {
+    if (!this.ensure() || !this.ctx || !this.master) return 0;
+    if (!this.meter) {
+      const node = this.ctx.createAnalyser();
+      node.fftSize = 2048;
+      this.master.connect(node);
+      this.meter = node;
     }
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, time);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, layer.gain), time + Math.min(0.03, layer.dur * 0.25));
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + layer.dur);
-    filter.connect(gain);
-    gain.connect(dest);
-    if (layer.kind === 'noise') {
-      if (!this.noise) return;
-      const src = this.ctx.createBufferSource();
-      src.buffer = this.noise;
-      src.connect(filter);
-      src.start(time, Math.random() * 0.2, layer.dur + 0.02);
-      src.stop(time + layer.dur + 0.03);
-      return;
-    }
-    const osc = this.ctx.createOscillator();
-    osc.type = layer.id === 'sub' ? 'sine' : 'triangle';
-    osc.frequency.setValueAtTime(Math.max(1, layer.freq), time);
-    if (layer.slideTo > 0) {
-      osc.frequency.exponentialRampToValueAtTime(Math.max(1, layer.slideTo), time + layer.dur);
-    }
-    osc.connect(filter);
-    osc.start(time);
-    osc.stop(time + layer.dur + 0.02);
+    const data = new Float32Array(this.meter.fftSize);
+    this.meter.getFloatTimeDomainData(data);
+    let peak = 0;
+    for (let i = 0; i < data.length; i += 1) peak = Math.max(peak, Math.abs(data[i] ?? 0));
+    return peak;
   }
 
   startUfo(): void {
@@ -351,14 +339,22 @@ export class SoundService {
   }
 
   playBomb(): void {
-    this.bombPlays += 1;
-    if (this.transportPaused) return;
+    this.bombCues += 1;
+    if (this.playback.muted || this.transportPaused) return;
     if (!this.ensure() || !this.ctx || !this.master || !this.noise) return;
-    const bus = this.ctx.createGain();
-    bus.gain.value = 0.7;
-    bus.connect(this.master);
-    const time = this.ctx.currentTime;
-    for (const layer of bombSoundLayers()) this.playLayer(time, layer, bus);
+    const ctx = this.ctx;
+    const master = this.master;
+    const noise = this.noise;
+    const start = () => {
+      if (this.playback.muted || this.transportPaused) return;
+      this.bombPlays += 1;
+      scheduleBombGraph(ctx, master, ctx.currentTime, noise);
+    };
+    if (ctx.state === 'suspended') {
+      void ctx.resume().then(start);
+      return;
+    }
+    start();
   }
 
   playDive(): void {
