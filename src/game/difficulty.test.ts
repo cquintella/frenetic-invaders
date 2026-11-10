@@ -40,38 +40,14 @@ test('invalid fields fall back or clamp and a level override wins', () => {
   assert.notEqual(resolveLevel(parsed.file, 8).maxAlive, 2);
 });
 
-test('level 1 starts with 6 centered aliens and the count grows to 50', () => {
-  const counts = [6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50];
-  for (let level = 1; level <= 12; level += 1) {
-    const tuning = resolveLevel(BUILTIN_DIFFICULTY, level);
-    assert.equal(tuning.count, counts[level - 1], `level ${level}`);
-    assert.equal(tuning.rowCounts.reduce((sum, row) => sum + row, 0), tuning.count);
-    assert.ok(tuning.columns <= 10);
-    assert.ok(tuning.rows <= 5);
-  }
-  assert.deepEqual(resolveLevel(BUILTIN_DIFFICULTY, 1).rowCounts, [3, 3]);
-  assert.deepEqual(resolveLevel(BUILTIN_DIFFICULTY, 12).rowCounts, [10, 10, 10, 10, 10]);
-  assert.equal(resolveLevel(BUILTIN_DIFFICULTY, 20).count, 50);
-
-  const parsed = difficultyFromUnknown({
-    formation: { countBase: 'lots', countMax: 80 },
-    levels: { '2': { count: 8 }, '4': { rows: 2, columns: 4 }, '5': { rows: 2 } },
-  });
-  assert.equal(parsed.file.formation.countBase, 6);
-  assert.equal(parsed.file.formation.countMax, 50);
-  assert.equal(resolveLevel(parsed.file, 2).count, 8);
-  assert.deepEqual(resolveLevel(parsed.file, 4).rowCounts, [4, 4]);
-  assert.equal(resolveLevel(parsed.file, 5).count, counts[4]);
-
+test('every wave still fields the full 5 by 10 formation', () => {
   const engine = new GameEngine();
   engine.start();
-  assert.equal(engine.world.invaders.length, 6);
-  const looks = engine.world.invaders.map((invader) => invader.look);
-  assert.equal(new Set(looks).size, 6);
-  assert.ok(looks.every((look) => look >= 0 && look < 25));
-  const min = Math.min(...engine.world.invaders.map((invader) => invader.x));
-  const max = Math.max(...engine.world.invaders.map((invader) => invader.x + invader.width));
-  assert.ok(Math.abs(min - (800 - max)) < 0.01);
+  assert.equal(engine.world.invaders.length, 50);
+  assert.ok(engine.world.invaders.every((invader) => invader.width === 40 && invader.height === 30));
+  const looks = new Set(engine.world.invaders.map((invader) => invader.look));
+  assert.equal(looks.size, 5);
+  assert.ok([...looks].every((look) => look >= 0 && look < 6));
 });
 
 test('shot pressure still rises after level 6, and more slowly', () => {

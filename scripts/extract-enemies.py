@@ -1,4 +1,7 @@
-"""Cut the approved 5×5 enemy board into A1–E5 sprites with real alpha.
+"""Cut six approved cells from the 5×5 enemy board into sprites with real alpha.
+
+The game ships A1, B1, D1, E2, C4 and E3. The other cells are not written.
+
 
 Source is the file delivered in the workspace uploads folder. The sheet has
 a metal grid, a title, corner labels and a starfield. Those go. The creature,
@@ -273,10 +276,13 @@ def main() -> None:
         raise SystemExit(f"missing enemy board: {SOURCE_CANDIDATES[0]}")
     board = np.array(Image.open(source).convert("RGBA"))
     OUT.mkdir(parents=True, exist_ok=True)
+    shipped = {"A1", "B1", "D1", "E2", "C4", "E3"}
     report = []
     for row in range(5):
         for col in range(5):
             name = f"{'ABCDE'[col]}{row + 1}"
+            if name not in shipped:
+                continue
             y0, y1 = ROW_EDGES[row] + 4, ROW_EDGES[row + 1] - 4
             x0, x1 = COL_EDGES[col] + 4, COL_EDGES[col + 1] - 4
             rgba = extract_cell(board[y0:y1, x0:x1, :3])
@@ -287,7 +293,10 @@ def main() -> None:
             image.save(OUT / f"{name}.png")
             report.append({"id": name, "w": image.width, "h": image.height, "opaque": opaque, "clear": transparent})
             print(f"{name} {image.size} opaque {opaque} clear {transparent}")
-    (OUT / "index.json").write_text(json.dumps(report, indent=2))
+    for stale in OUT.glob("*.png"):
+        if stale.stem not in shipped:
+            stale.unlink()
+    (OUT / "index.json").write_text(json.dumps(report, indent=2) + "\n")
     if len(report) != 25 or any(item["opaque"] < 800 for item in report):
         raise SystemExit("a cell came out empty or the board was not 5×5")
 

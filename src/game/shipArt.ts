@@ -11,8 +11,8 @@ import { ALIEN_PALETTES, type Palette } from './sprites';
  * Saucer: the ring craft, flattened into 60×25. Legs do not fit. The wedge
  * beside it and the orthographic racer are a different craft and are not
  * used as the gameplay silhouette.
- * Aliens are the 25 cuts from the approved board (A1–E5). The live path
- * blits those cuts. It does not draw a stand-in if a cut has not loaded.
+ * Aliens are six cuts from the approved board (A1, B1, D1, E2, C4, E3).
+ * The live path blits those cuts. It does not draw a stand-in if a cut has not loaded.
  */
 
 const SCALE = 8;
@@ -434,7 +434,7 @@ export function alienCutsReady(): boolean {
   return true;
 }
 
-/** Approved A1–E5 cut, contain-fit in the existing box. No stand-in. */
+/** One of the six shipped cuts, contain-fit in the existing box. No stand-in. */
 export function drawAlienCraft(
   ctx: CanvasRenderingContext2D,
   type: number,
@@ -606,7 +606,7 @@ export function drawShipPanel(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(0, 0, SHIP_PANEL_W, SHIP_PANEL_H);
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '14px sans-serif';
-  ctx.fillText('1×, 2× e 4×. A nave usa as três poses. Os aliens são os recortes A1–E5.', 16, 22);
+  ctx.fillText('1×, 2× e 4×. A nave usa as três poses. Os aliens são A1, B1, D1, E2, C4 e E3.', 16, 22);
   const place = (scale: number, top: number) => {
     const aw = 40 * scale;
     const ah = 30 * scale;

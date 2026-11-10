@@ -21,7 +21,7 @@ export interface InvaderDive {
 
 export interface Invader extends Entity {
   type: number;
-  /** Index into the approved A1–E5 board. Does not affect points or behavior. */
+  /** Index into the six shipped cuts. Does not affect points or behavior. */
   look?: number;
   points: number;
   alive: boolean;

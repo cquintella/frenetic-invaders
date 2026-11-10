@@ -2,19 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ALIEN_FRAME_COUNT, ALIEN_IDS, alienFrame, alienLook, shipLean } from './alienMotion.ts';
 
-test('a wave shows every approved alien id without changing the id list', () => {
-  assert.equal(ALIEN_IDS.length, 25);
-  assert.equal(ALIEN_IDS[0], 'A1');
-  assert.equal(ALIEN_IDS[4], 'E1');
-  assert.equal(ALIEN_IDS[5], 'A2');
-  assert.equal(ALIEN_IDS[24], 'E5');
+test('six board cuts rotate by row and level', () => {
+  assert.deepEqual([...ALIEN_IDS], ['A1', 'B1', 'D1', 'E2', 'C4', 'E3']);
+  assert.equal(alienLook(1, 0, 0), alienLook(1, 0, 9));
+  assert.equal(alienLook(1, 1, 0), 1);
+  assert.equal(alienLook(2, 0, 3), 1);
   const seen = new Set<number>();
-  for (let row = 0; row < 5; row += 1) {
-    for (let col = 0; col < 10; col += 1) seen.add(alienLook(1, row, col));
+  for (let level = 1; level <= 2; level += 1) {
+    for (let row = 0; row < 5; row += 1) seen.add(alienLook(level, row, 0));
   }
-  assert.equal(seen.size, 25);
-  assert.notEqual(alienLook(1, 0, 0), alienLook(2, 0, 0));
-  assert.equal(alienLook(1, 2, 4), alienLook(1, 2, 4));
+  assert.equal(seen.size, ALIEN_IDS.length);
 });
 
 test('alien frames follow simulation time and hold still when time holds', () => {

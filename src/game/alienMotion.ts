@@ -1,28 +1,20 @@
-/** Approved board ids, row-major: A1 B1 C1 D1 E1 … E5. */
-export const ALIEN_IDS: readonly string[] = Array.from({ length: 25 }, (_, index) => {
-  const column = index % 5;
-  const row = Math.floor(index / 5) + 1;
-  return `${'ABCDE'[column]}${row}`;
-});
+/**
+ * Six cuts from the approved board. Chosen for silhouette and color,
+ * not the whole 5×5 sheet. C3 and D5 stay out.
+ * Crab, grub, jellyfish, horned brute, urchin, armored figure.
+ */
+export const ALIEN_IDS: readonly string[] = ['A1', 'B1', 'D1', 'E2', 'C4', 'E3'];
 
 export const ALIEN_FRAME_COUNT = 8;
 
 /**
- * Which approved sprite a formation slot shows.
- * Behavior, points and hit box stay on `type`. Level shifts the set so
- * later waves are not a copy of the first, and every id appears in a wave.
+ * One cut per formation row. The level rotates which of the six is on top,
+ * so a later wave is not a copy of the first. Points and the hit box stay on `type`.
  */
-export function alienLook(level: number, row: number, col: number): number {
+export function alienLook(level: number, row: number, _col = 0): number {
   const wave = Math.max(1, level) - 1;
-  const slot = row * 10 + col;
-  return (wave * 5 + slot) % ALIEN_IDS.length;
-}
-
-/** Sprite for the nth alien of a wave. The first 25 are distinct, then the board repeats. */
-export function alienLookIndex(level: number, index: number): number {
-  const wave = Math.max(1, level) - 1;
-  const slot = Math.max(0, Math.floor(index));
-  return (wave * 5 + slot) % ALIEN_IDS.length;
+  const line = Math.max(0, Math.floor(row));
+  return (wave + line) % ALIEN_IDS.length;
 }
 
 /**
