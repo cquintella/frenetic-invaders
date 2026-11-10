@@ -1,0 +1,45 @@
+{
+  "files": {
+    "neutral": "public/sprites/ship/neutral.png",
+    "lean-right": "public/sprites/ship/lean-right.png",
+    "lean-left": "public/sprites/ship/lean-left.png"
+  },
+  "poses": {
+    "neutral": {
+      "noseX": 299,
+      "noseY": 6,
+      "hullTop": 6,
+      "hullBottom": 647,
+      "hullLeft": 5,
+      "hullRight": 588,
+      "width": 598,
+      "height": 656,
+      "offsetX": 2,
+      "offsetY": 3
+    },
+    "lean-right": {
+      "noseX": 299,
+      "noseY": 7,
+      "hullTop": 7,
+      "hullBottom": 647,
+      "hullLeft": 44,
+      "hullRight": 535,
+      "width": 598,
+      "height": 656,
+      "offsetX": 41,
+      "offsetY": 4
+    },
+    "lean-left": {
+      "noseX": 299,
+      "noseY": 7,
+      "hullTop": 7,
+      "hullBottom": 647,
+      "hullLeft": 56,
+      "hullRight": 557,
+      "width": 598,
+      "height": 656,
+      "offsetX": 53,
+      "offsetY": 4
+    }
+  }
+}

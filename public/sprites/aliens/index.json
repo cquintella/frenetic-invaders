@@ -1,0 +1,30 @@
+[
+  {
+    "id": "green-spiky",
+    "w": 268,
+    "h": 400,
+    "opaque": 40418,
+    "clear": 66782
+  },
+  {
+    "id": "green-claws",
+    "w": 360,
+    "h": 622,
+    "opaque": 130533,
+    "clear": 93387
+  },
+  {
+    "id": "gold-blocky",
+    "w": 410,
+    "h": 608,
+    "opaque": 152773,
+    "clear": 96507
+  },
+  {
+    "id": "gold-ornate",
+    "w": 358,
+    "h": 635,
+    "opaque": 97006,
+    "clear": 130324
+  }
+]
