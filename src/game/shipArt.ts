@@ -1,4 +1,4 @@
-import { ALIEN_FRAME_COUNT, alienFrame } from './alienMotion';
+import { ALIEN_FRAME_COUNT, ALIEN_IDS, alienFrame } from './alienMotion';
 import { prefersReducedMotion } from './motion';
 import { ALIEN_PALETTES, type Palette } from './sprites';
 
@@ -11,8 +11,8 @@ import { ALIEN_PALETTES, type Palette } from './sprites';
  * Saucer: the ring craft, flattened into 60×25. Legs do not fit. The wedge
  * beside it and the orthographic racer are a different craft and are not
  * used as the gameplay silhouette.
- * Aliens below are provisional stand-ins only. They are not a selected
- * design; a 3×3 board replaces them when the player picks.
+ * Aliens are the 25 cuts from the approved board (A1–E5). The live path
+ * blits those cuts. It does not draw a stand-in if a cut has not loaded.
  */
 
 const SCALE = 8;
@@ -402,7 +402,39 @@ export function setBakedAlien(look: number, frames: HTMLCanvasElement[]): void {
   bakedAliens.set(look, frames);
 }
 
-/** Provisional until the approved A1–E5 cuts are on disk. Not a replacement design. */
+const alienCutsStarted = { current: false };
+
+function alienAsset(file: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  const prefix = base.endsWith('/') ? base : `${base}/`;
+  return `${prefix}sprites/aliens/${file}`;
+}
+
+/** Loads each approved cut once and bakes its eight poses. */
+function ensureAlienCuts(): void {
+  if (alienCutsStarted.current || typeof Image === 'undefined' || typeof document === 'undefined') return;
+  alienCutsStarted.current = true;
+  ALIEN_IDS.forEach((id, look) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => {
+      if (image.naturalWidth < 1) return;
+      const frames = bakeAlienFrames(image, image.naturalWidth, image.naturalHeight);
+      if (frames.length === ALIEN_FRAME_COUNT) setBakedAlien(look, frames);
+    };
+    image.src = alienAsset(`${id}.png`);
+  });
+}
+
+export function alienCutsReady(): boolean {
+  if (bakedAliens.size !== ALIEN_IDS.length) return false;
+  for (const frames of bakedAliens.values()) {
+    if (frames.length !== ALIEN_FRAME_COUNT) return false;
+  }
+  return true;
+}
+
+/** Approved A1–E5 cut, contain-fit in the existing box. No stand-in. */
 export function drawAlienCraft(
   ctx: CanvasRenderingContext2D,
   type: number,
@@ -416,25 +448,16 @@ export function drawAlienCraft(
   look = 0,
   slot = 0
 ): void {
+  ensureAlienCuts();
   const baked = bakedAliens.get(look);
-  if (baked && baked.length === ALIEN_FRAME_COUNT) {
-    const index = prefersReducedMotion() ? 0 : alienFrame(time, look, slot);
-    const sprite = baked[index] ?? baked[0];
-    if (sprite) {
-      const scale = Math.min(w / sprite.width, h / sprite.height);
-      const dw = sprite.width * scale;
-      const dh = sprite.height * scale;
-      ctx.drawImage(sprite, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
-      return;
-    }
-  }
-  const kind = type % 3;
-  const step = frame ? 1 : 0;
-  blit(ctx, `alien-${kind}-${step}-${palette.body}`, x, y, w, h, (pen, pw, ph) => {
-    if (kind === 1) paintBlind(pen, pw, ph, step, palette);
-    else if (kind === 2) paintMaw(pen, pw, ph, step, palette);
-    else paintSlit(pen, pw, ph, step, palette);
-  });
+  if (!baked || baked.length !== ALIEN_FRAME_COUNT) return;
+  const index = prefersReducedMotion() ? 0 : alienFrame(time, look, slot);
+  const sprite = baked[index] ?? baked[0];
+  if (!sprite) return;
+  const scale = Math.min(w / sprite.width, h / sprite.height);
+  const dw = sprite.width * scale;
+  const dh = sprite.height * scale;
+  ctx.drawImage(sprite, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
 /** Side pod from the front gunship, not a separate cartoon. */
@@ -496,6 +519,47 @@ function containShip(
   ctx.drawImage(image, dx, dy, dw, dh);
 }
 
+/**
+ * Clean plume under the two bells. It is not a crop of the checkerboard
+ * sheet. The same simulation time drives it, so pause holds the flicker.
+ */
+function drawEngineFlame(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  time: number
+): void {
+  const scale = h / image.height;
+  const dx = x + w / 2 - image.width * SHIP_NOSE.x * scale;
+  const dy = y - image.height * SHIP_NOSE.y * scale;
+  const flicker = prefersReducedMotion() ? 0.7 : 0.55 + 0.45 * Math.abs(Math.sin(time * 16));
+  ctx.save();
+  for (const fx of [0.225, 0.75]) {
+    const cx = dx + image.width * fx * scale;
+    const cy = dy + image.height * 0.97 * scale;
+    const len = h * (0.16 + 0.07 * flicker);
+    const grad = ctx.createLinearGradient(cx, cy, cx, cy + len);
+    grad.addColorStop(0, `rgba(255, 236, 200, ${0.85 * flicker})`);
+    grad.addColorStop(0.4, `rgba(251, 146, 60, ${0.7 * flicker})`);
+    grad.addColorStop(1, 'rgba(234, 88, 12, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + len * 0.42, Math.max(1.1, w * 0.045), len * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+export function shipPosesReady(): boolean {
+  return ([-1, 0, 1] as const).every((lean) => {
+    const image = shipPoses[lean];
+    return Boolean(image && image.complete && image.naturalWidth > 0);
+  });
+}
+
 /** Front gunship cut from the approved sheet. The blue-shot panel is not used. */
 export function drawPlayerCraft(
   ctx: CanvasRenderingContext2D,
@@ -510,6 +574,7 @@ export function drawPlayerCraft(
   ensureShipPoses();
   const image = shipPoses[lean] ?? shipPoses[0];
   if (image && image.complete && image.naturalWidth > 0) {
+    drawEngineFlame(ctx, image, x, y, w, h, time);
     containShip(ctx, image, x, y, w, h);
     return;
   }
@@ -541,7 +606,7 @@ export function drawShipPanel(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(0, 0, SHIP_PANEL_W, SHIP_PANEL_H);
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '14px sans-serif';
-  ctx.fillText('1×, 2× e 4×. Nave, disco e escolta seguem as folhas. Aliens à esquerda são provisórios.', 16, 22);
+  ctx.fillText('1×, 2× e 4×. A nave usa as três poses. Os aliens são os recortes A1–E5.', 16, 22);
   const place = (scale: number, top: number) => {
     const aw = 40 * scale;
     const ah = 30 * scale;

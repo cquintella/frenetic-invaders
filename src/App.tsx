@@ -7,6 +7,8 @@ import { rankScores } from './scores/topScores';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, STEP } from './game/constants';
 import { frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
 import { GameEngine } from './game/engine';
+import { alienCutsReady, shipPosesReady } from './game/shipArt';
+import { installDifficulty, loadDifficultyConfig } from './game/difficulty';
 import type { HudSnapshot } from './game/types';
 import { GameLogo, OpeningBackdrop } from './title/Opening';
 
@@ -149,6 +151,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let cancel = false;
+    void loadDifficultyConfig().then((result) => {
+      if (cancel) return;
+      for (const warning of result.warnings) console.warn(warning);
+      installDifficulty(result.file);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (gameState === 'LEADERBOARD') void fetchScores();
   }, [gameState]);
 
@@ -157,6 +171,8 @@ export default function App() {
     window.__frenetic = {
       sound: soundService,
       getEngine: () => engineRef.current,
+      alienCutsReady: () => alienCutsReady(),
+      shipPosesReady: () => shipPosesReady(),
     };
   }, []);
 

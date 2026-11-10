@@ -3,6 +3,8 @@
 interface FreneticDebug {
   sound: import('./services/soundService').SoundService;
   getEngine: () => import('./game/engine').GameEngine | null;
+  alienCutsReady?: () => boolean;
+  shipPosesReady?: () => boolean;
 }
 
 declare global {

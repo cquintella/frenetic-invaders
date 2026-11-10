@@ -1,0 +1,41 @@
+{
+  "march": {
+    "intervalBase": 0.78,
+    "intervalPerLevel": 0.12,
+    "intervalMin": 0.42,
+    "stepBase": 12,
+    "stepPerLevel": 0.05,
+    "stepMax": 16,
+    "drop": 25
+  },
+  "shots": {
+    "rateBase": 0.55,
+    "ratePerLevel": 0.85,
+    "ratePerLevelAfterKnee": 0.28,
+    "knee": 6,
+    "rateMax": 8,
+    "speedBase": 230,
+    "speedPerLevel": 22,
+    "speedPerLevelAfterKnee": 8,
+    "speedMax": 400,
+    "maxAliveBase": 3,
+    "maxAlivePerLevel": 0.25,
+    "maxAliveMax": 6,
+    "volley": 1
+  },
+  "bombs": {
+    "ufoPerSecondBase": 0.25,
+    "ufoPerSecondPerLevel": 0.04,
+    "ufoPerSecondMax": 0.7,
+    "ufoSpeedBase": 210,
+    "ufoSpeedPerLevel": 18,
+    "ufoSpeedMax": 380
+  },
+  "dives": {
+    "intervalBase": 5.2,
+    "intervalPerLevel": -0.08,
+    "intervalMin": 3.6,
+    "duration": 2.8
+  },
+  "levels": {}
+}

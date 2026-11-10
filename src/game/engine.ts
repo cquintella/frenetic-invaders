@@ -9,8 +9,6 @@ import {
   INVADER_HEIGHT,
   INVADER_WIDTH,
   LASER_COOLDOWN,
-  DIVE_DURATION,
-  DIVE_INTERVAL,
   LASER_DURATION,
   LASER_MAX,
   LASER_WIDTH,
@@ -38,6 +36,7 @@ import { drawWorld } from './draw';
 import { createSky, updateSky } from './sky';
 import { rollPickup, ufoPoints } from './drops';
 import { alienLook, shipLean } from './alienMotion';
+import { levelTuning } from './difficulty';
 import { ALIEN_PALETTES } from './sprites';
 import type { Bomb, Bullet, Entity, HudSnapshot, Invader, PickupKind, Ufo, WingCannon, World } from './types';
 import { soundService } from '../services/soundService';
@@ -59,7 +58,8 @@ export class GameEngine {
   private dir = 1;
   private nextUfoAt = 12;
   private trailAcc = 0;
-  private diveTimer = DIVE_INTERVAL;
+  private diveTimer = 5.2;
+  private shotTimer = 0.4;
   private wingCooldown = WING_COOLDOWN;
 
   constructor() {
@@ -180,6 +180,7 @@ export class GameEngine {
     this.updatePickups(dt);
     this.updateWings(dt);
     this.marchInvaders(dt);
+    this.updateEnemyFire(dt);
     if (world.over) return this.snapshot();
     this.updateDives(dt);
     if (world.over) return this.snapshot();
@@ -224,7 +225,8 @@ export class GameEngine {
     this.world.invaders = invaders;
     this.dir = 1;
     this.stepTimer = 0;
-    this.diveTimer = DIVE_INTERVAL;
+    this.diveTimer = levelTuning(this.world.level).diveInterval;
+    this.shotTimer = 0.4;
     this.world.anim = 0;
   }
 
@@ -259,13 +261,10 @@ export class GameEngine {
     this.spawnInvaders();
   }
 
-  /** Each wave shortens the step and lengthens the stride a little. */
-  private marchPace(): { interval: number; step: number } {
-    const scale = 1 + (this.world.level - 1) * 0.12;
-    return {
-      interval: 0.78 / scale,
-      step: 12 * (1 + (this.world.level - 1) * 0.05),
-    };
+  /** Each wave shortens the step and lengthens the stride, from the difficulty file. */
+  private marchPace(): { interval: number; step: number; drop: number } {
+    const tune = levelTuning(this.world.level);
+    return { interval: tune.marchInterval, step: tune.marchStep, drop: tune.marchDrop };
   }
 
   private playerBox(): Entity {
@@ -369,7 +368,7 @@ export class GameEngine {
         width: UFO_WIDTH,
         height: UFO_HEIGHT,
         active: true,
-        speed: (3 + world.level * 0.5) * 60,
+        speed: levelTuning(world.level).ufoSpeed,
         points: ufoPoints(Math.random()),
         trail: [],
         phase: Math.random() * Math.PI * 2,
@@ -404,7 +403,7 @@ export class GameEngine {
       return;
     }
 
-    const chance = Math.min(0.85, 0.02 * world.level * 60 * dt);
+    const chance = levelTuning(world.level).ufoBombPerSecond * dt;
     if (Math.random() < chance) {
       const bombX = ufo.x + UFO_WIDTH / 2;
       const playerX = world.player.x + PLAYER_WIDTH / 2;
@@ -643,7 +642,7 @@ export class GameEngine {
   private updateDives(dt: number): void {
     this.diveTimer -= dt;
     if (this.diveTimer <= 0) {
-      this.diveTimer += DIVE_INTERVAL;
+      this.diveTimer += levelTuning(this.world.level).diveInterval;
       this.tryStartDive();
     }
 
@@ -693,7 +692,7 @@ export class GameEngine {
     const rx = Math.min(110, Math.max(0, room));
     inv.dive = {
       t: 0,
-      duration: DIVE_DURATION,
+      duration: levelTuning(this.world.level).diveDuration,
       rx,
       ry,
       side,
@@ -734,26 +733,44 @@ export class GameEngine {
       this.dir *= -1;
       for (const inv of this.world.invaders) {
         if (!inv.alive) continue;
-        inv.homeY += 25;
+        inv.homeY += pace.drop;
         if (!inv.dive) inv.y = inv.homeY;
         if (inv.homeY > this.world.player.y - 20) this.fail();
       }
     }
-    if (this.world.over) return;
+  }
 
-    for (const inv of this.world.invaders) {
-      if (!inv.alive || inv.dive) continue;
-      if (Math.random() < 0.008 * this.world.level) {
-        this.world.enemyBullets.push({
-          x: inv.x + INVADER_WIDTH / 2 - BULLET_WIDTH / 2,
-          y: inv.y + INVADER_HEIGHT,
-          width: BULLET_WIDTH,
-          height: BULLET_HEIGHT,
-          active: true,
-          speed: (3.5 + this.world.level * 0.4) * 60,
-          owner: 'enemy',
-        });
-      }
+  /**
+   * One shooter at a time, on its own clock, so a march step is not a volley.
+   * extra shots wait until the number on screen is under the level cap.
+   */
+  private updateEnemyFire(dt: number): void {
+    if (this.world.over) return;
+    const tune = levelTuning(this.world.level);
+    const alive = this.world.enemyBullets.filter((bullet) => bullet.active).length;
+    if (alive >= tune.maxAlive) return;
+    this.shotTimer -= dt;
+    if (this.shotTimer > 0) return;
+    const candidates = this.world.invaders.filter((inv) => inv.alive && !inv.dive);
+    if (candidates.length === 0) {
+      this.shotTimer = 0.25;
+      return;
+    }
+    const period = 1 / Math.max(0.05, tune.shotRate);
+    this.shotTimer = period;
+    const count = Math.min(tune.volley, tune.maxAlive - alive, candidates.length);
+    for (let n = 0; n < count; n += 1) {
+      const inv = candidates[Math.floor(Math.random() * candidates.length)];
+      if (!inv) continue;
+      this.world.enemyBullets.push({
+        x: inv.x + INVADER_WIDTH / 2 - BULLET_WIDTH / 2,
+        y: inv.y + INVADER_HEIGHT,
+        width: BULLET_WIDTH,
+        height: BULLET_HEIGHT,
+        active: true,
+        speed: tune.shotSpeed,
+        owner: 'enemy',
+      });
     }
   }
 
