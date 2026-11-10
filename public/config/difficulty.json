@@ -37,5 +37,10 @@
     "intervalMin": 3.6,
     "duration": 2.8
   },
+  "backgrounds": [
+    "backgrounds/bg1-nebula-purple.webp",
+    "backgrounds/bg2-golden-galaxy.webp",
+    "backgrounds/bg3-blue-nebula.webp"
+  ],
   "levels": {}
 }

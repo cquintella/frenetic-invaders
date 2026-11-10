@@ -8,6 +8,8 @@ A curva sobe até `shots.knee` (onda 6) com `ratePerLevel` e, depois disso, com 
 
 A formação continua com 5 filas de 10. O JSON não muda essa quantidade.
 
+`backgrounds` é a lista de fotos do fundo, em ciclo. A onda 1 usa o primeiro arquivo, a onda 2 o segundo, e depois recomeça. O caminho é relativo a `public/`, sem barra no começo. Se o campo faltar ou não for uma lista utilizável, o jogo usa as três fotos embutidas. Se um arquivo não carregar, aquela onda volta ao céu pintado.
+
 | Campo | Efeito |
 | --- | --- |
 | `march.intervalBase` / `intervalPerLevel` / `intervalMin` | Segundos entre passos da formação. O intervalo encolhe com a onda e não passa de `intervalMin`. |
@@ -21,3 +23,4 @@ A formação continua com 5 filas de 10. O JSON não muda essa quantidade.
 | `bombs.ufoSpeedBase` / `ufoSpeedPerLevel` / `ufoSpeedMax` | Velocidade do disco. |
 | `dives.intervalBase` / `intervalPerLevel` / `intervalMin` | Segundos entre mergulhos. |
 | `dives.duration` | Duração de um mergulho. |
+| `backgrounds` | Fotos do fundo, uma por onda, em ciclo. A onda 1 é o primeiro item. |

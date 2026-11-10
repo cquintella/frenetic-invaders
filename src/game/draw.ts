@@ -11,6 +11,8 @@ import {
 import { prefersReducedMotion } from './motion';
 import { ALIEN_PALETTES } from './sprites';
 import { drawAlienCraft, drawPlayerCraft, drawUfoCraft, drawWingCraft } from './shipArt';
+import { drawLevelBackground } from './backgrounds';
+import { installedDifficulty } from './difficulty';
 import { drawSky } from './sky';
 import type { World } from './types';
 
@@ -379,7 +381,9 @@ export function drawWorld(ctx: CanvasRenderingContext2D, world: World): void {
   if (!prefersReducedMotion() && world.shake > 0.4) {
     ctx.translate((Math.random() - 0.5) * world.shake * 2, (Math.random() - 0.5) * world.shake * 2);
   }
-  drawSky(ctx, world.sky, world.camera);
+  if (!drawLevelBackground(ctx, world.level, installedDifficulty().backgrounds)) {
+    drawSky(ctx, world.sky, world.camera);
+  }
   drawInvaders(ctx, world);
   drawUfo(ctx, world);
   drawPickups(ctx, world);

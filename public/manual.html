@@ -155,17 +155,17 @@ npm run dev</code></pre>
 
       <h2>Disco, céu e placar</h2>
       <p>O primeiro disco entra entre 10 e 20 segundos de onda. Depois de cada aparição, o próximo espera outro intervalo nessa mesma faixa. A velocidade de base sobe com a onda e é multiplicada por uma onda senoidal que nunca cai abaixo de 30% da base.</p>
-      <p>O céu troca a cada onda e repete a cada quatro:</p>
+      <p>O fundo troca a cada onda e repete a cada três fotos, cobrindo a tela sem distorcer:</p>
       <table>
-        <thead><tr><th>Onda</th><th>Céu</th></tr></thead>
+        <thead><tr><th>Onda</th><th>Fundo</th></tr></thead>
         <tbody>
-          <tr><td>1, 5, 9…</td><td>Azul, campo de estrelas e uma faixa de poeira</td></tr>
-          <tr><td>2, 6, 10…</td><td>Âmbar, Via Láctea diagonal</td></tr>
-          <tr><td>3, 7, 11…</td><td>Violeta, aglomerado globular, planeta com anel</td></tr>
-          <tr><td>4, 8, 12…</td><td>Verde, constelação de estrelas brilhantes</td></tr>
+          <tr><td>1, 4, 7…</td><td>Nebulosa roxa</td></tr>
+          <tr><td>2, 5, 8…</td><td>Galáxia dourada</td></tr>
+          <tr><td>3, 6, 9…</td><td>Nebulosa azul</td></tr>
         </tbody>
       </table>
-      <p>O campo desce, em três velocidades, para a nave parecer avançar. Longe: estrelas. No meio: planeta, de uma a quatro luas sorteadas (craterada, gelo, enxofre ou névoa), asteroides e um cometa, às vezes dois. O cometa viaja em linha reta numa direção sorteada entre 0° e 360°, com a cauda no sentido contrário. Perto: três nebulosas e um meteoro. Desviar a nave ainda desloca as camadas na horizontal, pouco. Nada disso colide com a nave.</p>
+      <p>A lista está em <span class="mono">backgrounds</span> dentro de <span class="mono">public/config/difficulty.json</span>. As três imagens já vêm decodificadas antes da primeira onda. Um véu escuro leve deixa a nave, os tiros e o placar legíveis. Se um arquivo não carregar, aquela onda usa o céu pintado.</p>
+      <p>O céu pintado ainda existe como reserva e também troca a cada onda, repetindo a cada quatro: azul, âmbar, violeta e verde. O campo desce, em três velocidades. Longe: estrelas. No meio: planeta, luas, asteroides e um cometa. Perto: nebulosas e um meteoro. Nada disso colide com a nave.</p>
       <p>O Hall of Fame lista os 100 maiores scores, em ordem numérica decrescente, guardados em <span class="mono">scores.db</span>. O banco não apaga o histórico. Abrir essa tela busca a lista de novo. Os nomes sobem inclinados sobre a arte de abertura. Com movimento reduzido, a lista fica parada e pode ser rolada. O nome enviado é o callsign da partida, junto com o score e a onda em que a missão acabou.</p>
 
       <h2>Som</h2>
@@ -185,7 +185,8 @@ src/game/constants.ts     Números da simulação
 src/game/drops.ts         Sorteio puro do disco
 src/game/sprites.ts       Bitmaps
 src/game/draw.ts          Desenho do quadro
-src/game/sky.ts           Quatro céus
+src/game/sky.ts           Céu pintado, reserva
+src/game/backgrounds.ts   Fotos do fundo, em ciclo
 public/manual.html        Esta janela</code></pre>
       <p><span class="mono">@google/genai</span> está no <span class="mono">package.json</span> e o Vite injeta <span class="mono">GEMINI_API_KEY</span>. Nenhum arquivo em <span class="mono">src/</span> chama esse cliente. A partida não usa modelo de linguagem.</p>
 
@@ -224,7 +225,7 @@ public/manual.html        Esta janela</code></pre>
       <p><strong>Dificuldade.</strong> O arquivo <span class="mono">public/config/difficulty.json</span> ajusta marcha, tiros inimigos, bomba do disco e mergulho. A quantidade de aliens continua 5×10. Os campos estão em <span class="mono">public/config/README.md</span>. Arquivo ausente ou campo inválido cai no padrão embutido, com aviso no console. Depois da onda 6 os tiros sobem mais devagar, há um teto simultâneo e cada tiro sai sozinho, fora do passo da formação.</p>
       <p><strong>Naves.</strong> Os mapas continuam como referência. A nave do jogador é o recorte das três poses válidas da folha 2×2 (neutra e duas inclinações). O quadrante dos disparos azuis não entra. A caixa e a mecânica não mudam. Entram seis recortes da prancha: A1, B1, D1, E2, C4 e E3. A fila e a onda escolhem qual, sem mudar pontos nem tipo. A animação são oito poses assadas no tempo da simulação, então a pausa congela o quadro. A chama é um efeito separado e o disparo lateral azul não entra. O plasma ficou com 40% da largura anterior. O comprimento e a caixa de 4×12 não mudaram.</p>
       <p><strong>Desenho.</strong> <span class="mono">drawWorld</span> pinta o céu, a formação, o mergulhador por cima com um fantasma, o disco, módulos, bombas, tiros, feixe, escoltas, nave, partículas e os números que flutuam. O HUD de canvas fica na faixa de baixo. O shake de impacto é um translate em volta do quadro, tirado antes do HUD.</p>
-      <p><strong>Céu.</strong> <span class="mono">createSky(level)</span> escolhe <span class="mono">(level − 1) % 4</span> e monta o tema com um gerador mulberry32 semeado pelo índice. O tema da onda se repete. O número de luas (de uma a quatro) e a rota do cometa são sorteados de novo a cada onda. Planeta, lua e asteroide descem com <span class="mono">speed</span>. O cometa guarda <span class="mono">vx</span> e <span class="mono">vy</span> constantes, ângulo uniforme em 360°, e a cauda aponta para o lado oposto. <span class="mono">drift</span> desloca tudo na lateral quando a nave se move. Estrelas são as mais lentas. Corpos do meio vêm depois. Nebulosas e meteoros são os mais rápidos, e não compartilham o mesmo valor entre si. A nebulosa é um conjunto de gradientes radiais com núcleo claro e nós escuros.</p>
+      <p><strong>Céu.</strong> A foto da onda é <span class="mono">(level − 1) % backgrounds.length</span>, desenhada em cover no canvas lógico. O mesmo enquadramento vale com devicePixelRatio 2, porque o contexto já está escalado. Se a imagem não chegou, <span class="mono">createSky(level)</span> escolhe <span class="mono">(level − 1) % 4</span> e monta o tema com um gerador mulberry32 semeado pelo índice. O tema da onda se repete. O número de luas (de uma a quatro) e a rota do cometa são sorteados de novo a cada onda. Planeta, lua e asteroide descem com <span class="mono">speed</span>. O cometa guarda <span class="mono">vx</span> e <span class="mono">vy</span> constantes, ângulo uniforme em 360°, e a cauda aponta para o lado oposto. <span class="mono">drift</span> desloca tudo na lateral quando a nave se move. Estrelas são as mais lentas. Corpos do meio vêm depois. Nebulosas e meteoros são os mais rápidos, e não compartilham o mesmo valor entre si. A nebulosa é um conjunto de gradientes radiais com núcleo claro e nós escuros.</p>
       <p><strong>Som.</strong> Um AudioContext com ganho master em 0,28 e um compressor. A trilha é um único player em loop, em <span class="mono">public/musica</span>. A mesma faixa não reinicia entre PLAYING e LEVEL_UP. A bomba é síntese local, com ataque, corpo no médio e cauda. P pausa a simulação e o áudio. O círculo que piscava virou flash, onda de choque e partículas. O shake respeita movimento reduzido.</p>
 
       <h3>O que o código não faz</h3>

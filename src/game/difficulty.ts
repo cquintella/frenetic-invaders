@@ -1,9 +1,12 @@
+import { BUILTIN_BACKGROUNDS, parseBackgroundList } from './backgrounds';
+
 /**
  * Per-level pressure. The numbers live in public/config/difficulty.json so a
  * player can edit them. This module is the fallback and the clamp.
  *
  * A value is base + (level-1) * perLevel up to `knee`, then a slower
  * perLevelAfterKnee. Optional `levels` replaces the result for one wave.
+ * `backgrounds` is the photo cycle. Level 1 uses the first file.
  */
 
 export type DifficultyFile = {
@@ -45,6 +48,8 @@ export type DifficultyFile = {
     intervalMin: number;
     duration: number;
   };
+  /** Public paths, without a leading slash. Level 1 is the first entry. */
+  backgrounds: string[];
   levels: Record<string, LevelOverride>;
 };
 
@@ -115,6 +120,7 @@ export const BUILTIN_DIFFICULTY: DifficultyFile = {
     intervalMin: 3.6,
     duration: 2.8,
   },
+  backgrounds: [...BUILTIN_BACKGROUNDS],
   levels: {},
 };
 
@@ -213,6 +219,7 @@ export function difficultyFromUnknown(value: unknown): { file: DifficultyFile; w
       intervalMin: num(read(dives, 'intervalMin'), base.dives.intervalMin, LIMITS.diveInterval, warnings, 'dives.intervalMin'),
       duration: num(read(dives, 'duration'), base.dives.duration, LIMITS.diveDuration, warnings, 'dives.duration'),
     },
+    backgrounds: parseBackgroundList(read(value, 'backgrounds'), warnings),
     levels: {},
   };
   const levels = read(value, 'levels');

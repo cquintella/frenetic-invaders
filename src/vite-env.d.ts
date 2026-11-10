@@ -5,6 +5,7 @@ interface FreneticDebug {
   getEngine: () => import('./game/engine').GameEngine | null;
   alienCutsReady?: () => boolean;
   shipPosesReady?: () => boolean;
+  backgroundsReady?: () => boolean;
 }
 
 declare global {

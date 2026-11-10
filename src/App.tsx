@@ -9,7 +9,8 @@ import { intermissionAdvanceKey } from './game/intermission';
 import { PAUSE_CONTINUE, PAUSE_TITLE, frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
 import { GameEngine } from './game/engine';
 import { alienCutsReady, shipPosesReady } from './game/shipArt';
-import { installDifficulty, loadDifficultyConfig } from './game/difficulty';
+import { BUILTIN_BACKGROUNDS, backgroundsReady, preloadBackgrounds } from './game/backgrounds';
+import { installDifficulty, installedDifficulty, loadDifficultyConfig } from './game/difficulty';
 import type { HudSnapshot } from './game/types';
 import { GameLogo, OpeningBackdrop } from './title/Opening';
 
@@ -149,11 +150,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    void preloadBackgrounds(BUILTIN_BACKGROUNDS);
+  }, []);
+
+  useEffect(() => {
     let cancel = false;
     void loadDifficultyConfig().then((result) => {
       if (cancel) return;
       for (const warning of result.warnings) console.warn(warning);
       installDifficulty(result.file);
+      void preloadBackgrounds(result.file.backgrounds);
     });
     return () => {
       cancel = true;
@@ -171,6 +177,7 @@ export default function App() {
       getEngine: () => engineRef.current,
       alienCutsReady: () => alienCutsReady(),
       shipPosesReady: () => shipPosesReady(),
+      backgroundsReady: () => backgroundsReady(installedDifficulty().backgrounds),
     };
   }, []);
 
