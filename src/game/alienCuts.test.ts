@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { ALIEN_IDS } from './alienMotion.ts';
 
-test('the six shipped cuts are RGBA pngs and the rest are not packed', () => {
-  assert.equal(ALIEN_IDS.length, 6);
+test('the four enemy ships are RGBA pngs and the monsters are not packed', () => {
+  assert.equal(ALIEN_IDS.length, 4);
   const packed = readdirSync(new URL('../../public/sprites/aliens/', import.meta.url))
     .filter((name) => name.endsWith('.png'))
     .sort();

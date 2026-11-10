@@ -11,7 +11,7 @@ import { ALIEN_PALETTES, type Palette } from './sprites';
  * Saucer: the ring craft, flattened into 60×25. Legs do not fit. The wedge
  * beside it and the orthographic racer are a different craft and are not
  * used as the gameplay silhouette.
- * Aliens are six cuts from the approved board (A1, B1, D1, E2, C4, E3).
+ * Aliens are four enemy ships (green-spiky, green-claws, gold-blocky, gold-ornate).
  * The live path blits those cuts. It does not draw a stand-in if a cut has not loaded.
  */
 
@@ -364,9 +364,10 @@ function paintWing(ctx: CanvasRenderingContext2D, w: number, h: number): void {
 const bakedAliens = new Map<number, HTMLCanvasElement[]>();
 
 /**
- * Eight poses baked once from a cut sprite. The upper body breathes.
- * The lower body sways by about a pixel, which reads as limbs when the
- * crop has them, without inventing joints. Runtime only blits.
+ * Eight poses baked once from a cut sprite. The upper body breathes,
+ * the lower body sways by about a pixel, and thruster pixels flicker.
+ * The same simulation time picks the frame, so a pause holds the pose.
+ * Runtime only blits.
  */
 export function bakeAlienFrames(source: CanvasImageSource, width: number, height: number): HTMLCanvasElement[] {
   const frames: HTMLCanvasElement[] = [];
@@ -393,9 +394,32 @@ export function bakeAlienFrames(source: CanvasImageSource, width: number, height
       const shift = sway * (slice / slices) * 1.2;
       pen.drawImage(source, 0, sy, width, sh, 2 + shift, 2 + sy, width, sh);
     }
+    flickerThrusters(pen, canvas.width, canvas.height, cycle);
     frames.push(canvas);
   }
   return frames;
+}
+
+/** Brighten or dim the painted exhaust so the eight frames don't share one flame. */
+function flickerThrusters(pen: CanvasRenderingContext2D, width: number, height: number, cycle: number): void {
+  const flicker = 0.72 + 0.42 * Math.abs(Math.sin(cycle * 2));
+  const image = pen.getImageData(0, 0, width, height);
+  const data = image.data;
+  const limit = Math.round(height * 0.42);
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const y = Math.floor(offset / 4 / width);
+    if (y > limit || (data[offset + 3] ?? 0) < 16) continue;
+    const red = data[offset] ?? 0;
+    const green = data[offset + 1] ?? 0;
+    const blue = data[offset + 2] ?? 0;
+    const orange = red > 170 && green > 60 && blue < 160 && red > blue + 30;
+    const cyan = blue > 150 && green > 110 && blue > red + 15;
+    if (!orange && !cyan) continue;
+    data[offset] = Math.min(255, Math.round(red * flicker));
+    data[offset + 1] = Math.min(255, Math.round(green * flicker));
+    data[offset + 2] = Math.min(255, Math.round(blue * flicker));
+  }
+  pen.putImageData(image, 0, 0);
 }
 
 export function setBakedAlien(look: number, frames: HTMLCanvasElement[]): void {
@@ -434,7 +458,7 @@ export function alienCutsReady(): boolean {
   return true;
 }
 
-/** One of the six shipped cuts, contain-fit in the existing box. No stand-in. */
+/** One of the four enemy ships, contain-fit in the portrait box. No stand-in. */
 export function drawAlienCraft(
   ctx: CanvasRenderingContext2D,
   type: number,
@@ -606,7 +630,7 @@ export function drawShipPanel(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(0, 0, SHIP_PANEL_W, SHIP_PANEL_H);
   ctx.fillStyle = '#cbd5e1';
   ctx.font = '14px sans-serif';
-  ctx.fillText('1×, 2× e 4×. A nave usa as três poses. Os aliens são A1, B1, D1, E2, C4 e E3.', 16, 22);
+  ctx.fillText('1×, 2× e 4×. A nave usa as três poses. Os inimigos são as quatro naves.', 16, 22);
   const place = (scale: number, top: number) => {
     const aw = 40 * scale;
     const ah = 30 * scale;

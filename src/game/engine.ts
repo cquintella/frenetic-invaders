@@ -58,6 +58,8 @@ export class GameEngine {
   private dir = 1;
   private nextUfoAt = 12;
   private trailAcc = 0;
+  /** Last UFO power-up. Survives later saucers and later waves. A new run clears it. */
+  private lastPickup: PickupKind | null = null;
   private diveTimer = 5.2;
   private shotTimer = 0.4;
   private wingCooldown = WING_COOLDOWN;
@@ -141,6 +143,7 @@ export class GameEngine {
     this.shotCooldown = 0;
     this.laserCooldown = 0;
     this.wingCooldown = WING_COOLDOWN;
+    this.lastPickup = null;
     this.trailAcc = 0;
     this.nextUfoAt = 10 + Math.random() * 10;
     this.spawnInvaders();
@@ -209,8 +212,11 @@ export class GameEngine {
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 10; col++) {
         const type = row === 0 ? 0 : row < 3 ? 1 : 2;
-        const x = 80 + col * (INVADER_WIDTH + 15);
-        const y = 80 + row * (INVADER_HEIGHT + 15);
+        const gapX = 14;
+        const gapY = 10;
+        const formW = 10 * INVADER_WIDTH + 9 * gapX;
+        const x = Math.round((CANVAS_WIDTH - formW) / 2) + col * (INVADER_WIDTH + gapX);
+        const y = 58 + row * (INVADER_HEIGHT + gapY);
         invaders.push({
           x,
           y,
@@ -784,6 +790,13 @@ export class GameEngine {
     }
   }
 
+  /** Skips the previous drop when another kind is still available. */
+  private choosePickup(roll: number): PickupKind {
+    const kind = rollPickup(roll, this.lastPickup);
+    this.lastPickup = kind;
+    return kind;
+  }
+
   private killInvader(inv: Invader): void {
     if (!inv.alive) return;
     inv.alive = false;
@@ -806,7 +819,7 @@ export class GameEngine {
       width: PICKUP_SIZE,
       height: PICKUP_SIZE,
       active: true,
-      kind: rollPickup(Math.random()),
+      kind: this.choosePickup(Math.random()),
       vy: PICKUP_SPEED,
     });
     this.burst(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#fb7185', 22);

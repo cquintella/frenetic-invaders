@@ -44,10 +44,11 @@ test('every wave still fields the full 5 by 10 formation', () => {
   const engine = new GameEngine();
   engine.start();
   assert.equal(engine.world.invaders.length, 50);
-  assert.ok(engine.world.invaders.every((invader) => invader.width === 40 && invader.height === 30));
+  assert.ok(engine.world.invaders.every((invader) => invader.width === 36 && invader.height === 52));
   const looks = new Set(engine.world.invaders.map((invader) => invader.look));
-  assert.equal(looks.size, 5);
-  assert.ok([...looks].every((look) => look >= 0 && look < 6));
+  assert.equal(looks.size, 4);
+  assert.equal(engine.world.invaders.filter((invader) => invader.look === 0).length, 20);
+  assert.ok([...looks].every((look) => look >= 0 && look < 4));
 });
 
 test('shot pressure still rises after level 6, and more slowly', () => {

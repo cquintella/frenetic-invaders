@@ -6,8 +6,9 @@ export const PLAYER_HEIGHT = 40;
 export const PLAYER_Y = CANVAS_HEIGHT - 78;
 /** 4.8 px per 60 Hz frame. */
 export const PLAYER_SPEED = 288;
-export const INVADER_WIDTH = 40;
-export const INVADER_HEIGHT = 30;
+/** Portrait enemy ships. Taller than the old 40×30 monster box so the hull reads. */
+export const INVADER_WIDTH = 36;
+export const INVADER_HEIGHT = 52;
 export const BULLET_WIDTH = 4;
 export const BULLET_HEIGHT = 12;
 /** 8 px per 60 Hz frame. */

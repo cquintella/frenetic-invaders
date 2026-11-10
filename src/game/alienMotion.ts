@@ -1,15 +1,15 @@
 /**
- * Six cuts from the approved board. Chosen for silhouette and color,
- * not the whole 5×5 sheet. C3 and D5 stay out.
- * Crab, grub, jellyfish, horned brute, urchin, armored figure.
+ * Four enemy ships, noses already pointing down. A five-row wave repeats
+ * the first ship on the bottom row. The next wave rotates which one is on top.
  */
-export const ALIEN_IDS: readonly string[] = ['A1', 'B1', 'D1', 'E2', 'C4', 'E3'];
+export const ALIEN_IDS: readonly string[] = ['green-spiky', 'green-claws', 'gold-blocky', 'gold-ornate'];
 
 export const ALIEN_FRAME_COUNT = 8;
 
 /**
- * One cut per formation row. The level rotates which of the six is on top,
- * so a later wave is not a copy of the first. Points and the hit box stay on `type`.
+ * One ship per formation row. Five rows and four ships, so the first ship
+ * repeats on the bottom row. The level rotates which one is on top.
+ * Points stay on `type`. The hit box is the portrait ship box.
  */
 export function alienLook(level: number, row: number, _col = 0): number {
   const wave = Math.max(1, level) - 1;
