@@ -12,7 +12,7 @@ O passo da formação é discreto: ela anda, para, anda. Se encostar numa borda,
 
 De vez em quando um disco cruza o alto da tela. A velocidade dele sobe e desce como uma onda, e ele também balança na vertical. Destruí-lo soma 100, 150, 200, 300 ou 500 pontos e solta um módulo. Você pega o módulo encostando a nave nele antes que saia por baixo.
 
-Quando o último alien morre, a simulação congela. A tela mostra a onda concluída e o score. Em 3,2 segundos, ou com Espaço, Enter ou clique, começa a onda seguinte. Canhão de escolta e tiro duplo continuam: a escolta leva as cargas que restam, e o tiro duplo não tem relógio. O laser ganha uma carga, até 3. Nas ondas 5, 10, 15… o escudo ganha um ponto, até 5.
+Quando o último alien morre, a simulação para. A tela mostra NÍVEL X COMPLETO e pede Espaço para o nível seguinte. O toque que matou o último alien, a tecla ainda segurada e a repetição do teclado não avançam: solte e aperte Espaço de novo. Nada se move nem atira nesse intervalo. Escudo, placar, tiro duplo e as cargas do canhão lateral ficam. O laser ganha uma carga, até 3, só quando a onda seguinte começa. Nas ondas 5, 10, 15… o escudo ganha um ponto, até 5. A primeira onda não pede essa tecla: Initiate Mission já a começa.
 
 A missão acaba de dois jeitos. Um tiro ou uma bomba acerta a nave sem escudo. Ou a formação, medida pelo lugar dela e não pelo alien que está mergulhando, chega na altura da nave. O escudo não impede esse segundo caso. O score vai uma vez para o Hall of Fame.
 
@@ -36,7 +36,8 @@ O servidor sobe em `http://localhost:3000`. No macOS ou Linux, `./install.sh` fa
 | A, D ou setas | Move a nave na horizontal |
 | Espaço | Tiro. Cadência de 0,35 s. Com tiro duplo, saem dois |
 | X ou Shift | Laser. Gasta 1 carga. Recarga de 1 s entre disparos |
-| Espaço, Enter ou clique | Na tela de onda concluída, avança |
+| Espaço, de novo | No intervalo entre ondas, começa a seguinte. Enter e clique não avançam |
+| P | Pausa a partida e o intervalo. Soltar não começa a onda |
 | Clique em Initiate Mission | Começa a partida. O campo de callsign precisa ter texto |
 
 O callsign é gravado em maiúsculas, no máximo 10 caracteres. Enter não inicia a missão na tela de abertura e não reinicia depois do game over. Esses dois passos são botões.
@@ -135,7 +136,7 @@ Telas, no tipo `GameState`:
 |---|---|
 | `START` | Callsign, missão, Hall of Fame, Manual. Música de abertura |
 | `PLAYING` | Loop ligado |
-| `LEVEL_UP` | Splash. O loop para. `engine.advance()` só então chama a próxima onda |
+| `LEVEL_UP` | Intervalo. O loop para. `engine.advance()` só roda num Espaço novo |
 | `GAME_OVER` | Um `POST /api/scores`. Retry chama `engine.start()` |
 | `LEADERBOARD` | `GET /api/scores` |
 
@@ -145,11 +146,13 @@ A API é pequena. `GET /api/scores` devolve no máximo os 100 maiores, por score
 
 ## O passo de simulação
 
-`update` sai na hora se `over` ou se `bannerLevel` está preenchido. Por isso o splash congela marcha, módulos e céu.
+`update` sai na hora se `over` ou se `bannerLevel` está preenchido. Por isso o intervalo congela marcha, módulos, tiros e céu. Nada se move, nada atira e não há dano.
 
-Na ordem, quando a partida corre: mover a nave, tiro, laser, tiros amigos, feixe, disco, tiros inimigos, bombas, módulos caindo, escoltas, marcha, mergulho, acertos nos aliens. Se todos estão mortos e a lista não está vazia, `openBanner` guarda o número da onda atual, corta o som do disco e toca o jingle. Não incrementa a onda. `advance` é que zera o banner e chama `nextLevel`.
+Na ordem, quando a partida corre: mover a nave, tiro, laser, tiros amigos, feixe, disco, tiros inimigos, bombas, módulos caindo, escoltas, marcha, mergulho, acertos nos aliens. Se todos estão mortos e a lista não está vazia, `openBanner` guarda o número da onda atual, limpa tiros, bombas, feixe, disco e explosões, corta o som do disco e toca o jingle. Não incrementa a onda. Escudo, placar, tiro duplo, escoltas e cargas do canhão lateral ficam. Um módulo que ainda estava caindo atravessa o intervalo e continua na onda seguinte.
 
-`nextLevel` soma 1 na onda, dá o laser, dá o escudo nas múltiplas de 5, limpa tiros, bombas, feixe, disco e flutuadores, troca o céu e gera outra formação. Não mexe em escolta nem em tiro duplo. Um módulo que ainda estava caindo atravessa o splash e continua na onda seguinte.
+A tela mostra `NÍVEL X COMPLETO` e pede Espaço para o nível `X+1`. O primeiro nível não usa esse aviso: o botão da tela inicial já começa a onda 1. O Espaço que matou o último alien, a tecla ainda segurada e a repetição automática do teclado não contam. O jogo espera soltar e apertar de novo. `P` durante o intervalo pausa por cima do aviso; soltar a pausa não começa a onda. `advance` é que zera o banner e chama `nextLevel`.
+
+`nextLevel` soma 1 na onda, dá o laser, dá o escudo nas múltiplas de 5, limpa tiros, bombas, feixe, disco e flutuadores, troca o céu e gera outra formação. Não mexe em escolta nem em tiro duplo. A faixa da onda seguinte entra no ciclo 02/03/04 só nesse momento. Durante o intervalo a faixa da onda que acabou continua.
 
 O acerto na nave está em `hurt`. Com escudo, desce um ponto e zera `wings` e `twin`. Sem escudo, `fail` marca `over`, para a música e toca o game over. A formação usa a mesma `fail` quando `homeY` passa de `player.y - 20`.
 

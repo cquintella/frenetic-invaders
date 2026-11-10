@@ -98,6 +98,10 @@ export class GameEngine {
     this.keys[code] = down;
   }
 
+  isKeyDown(code: string): boolean {
+    return Boolean(this.keys[code]);
+  }
+
   clearKeys(): void {
     this.keys = {};
   }
@@ -230,7 +234,7 @@ export class GameEngine {
     this.world.anim = 0;
   }
 
-  /** Leaves the splash and builds the next wave. Wing and twin stay. */
+  /** Leaves the interval and builds the next wave. Wing and twin stay. */
   advance(): void {
     if (this.world.bannerLevel === null) return;
     this.world.bannerLevel = null;
@@ -240,6 +244,12 @@ export class GameEngine {
   private openBanner(): void {
     if (this.world.bannerLevel !== null) return;
     this.world.bannerLevel = this.world.level;
+    this.world.bullets = [];
+    this.world.enemyBullets = [];
+    this.world.bombs = [];
+    this.world.beams = [];
+    this.world.blasts = [];
+    this.world.ufo = null;
     soundService.stopUfo();
     soundService.playLevelUp();
   }

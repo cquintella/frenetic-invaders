@@ -1,4 +1,4 @@
-/** P toggles only during play, once per press, and never from a text field. */
+/** P toggles during play and the wave interval, once per press, never from a text field. */
 export function pauseKeyAccepted(input: {
   code: string;
   repeat: boolean;
@@ -9,7 +9,7 @@ export function pauseKeyAccepted(input: {
   if (input.code !== 'KeyP') return false;
   const tag = (input.targetTag ?? '').toUpperCase();
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
-  return input.screen === 'PLAYING';
+  return input.screen === 'PLAYING' || input.screen === 'LEVEL_UP';
 }
 
 /** Gameplay keys are ignored while the sim is frozen, including in a text field. */

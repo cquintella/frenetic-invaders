@@ -5,6 +5,7 @@ import { GameState, Score } from './types';
 import { soundService } from './services/soundService';
 import { rankScores } from './scores/topScores';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, STEP } from './game/constants';
+import { intermissionAdvanceKey } from './game/intermission';
 import { frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
 import { GameEngine } from './game/engine';
 import { alienCutsReady, shipPosesReady } from './game/shipArt';
@@ -27,8 +28,6 @@ const EMPTY_UPGRADES: UpgradeHud = {
   wings: 0,
   wingShots: 0,
 };
-
-const SPLASH_MS = 3200;
 
 function openManualWindow(): boolean {
   const opened = window.open(
@@ -109,7 +108,6 @@ export default function App() {
   const pausedRef = useRef(false);
   const submittedRef = useRef(false);
   const submitRef = useRef<(snap: HudSnapshot) => void>(() => {});
-  const continueRef = useRef<(() => void) | null>(null);
   const muteRef = useRef<() => void>(() => {});
   const pauseRef = useRef<() => void>(() => {});
   const volumeRef = useRef<(delta: number) => void>(() => {});
@@ -228,7 +226,8 @@ export default function App() {
     setMuted(soundService.toggleMuted());
   };
   pauseRef.current = () => {
-    if (stateRef.current !== 'PLAYING') return;
+    const screen = stateRef.current;
+    if (screen !== 'PLAYING' && screen !== 'LEVEL_UP') return;
     const next = !pausedRef.current;
     pausedRef.current = next;
     setPaused(next);
@@ -358,32 +357,33 @@ export default function App() {
   }, [gameState]);
 
   useEffect(() => {
-    if (gameState !== 'LEVEL_UP') {
-      continueRef.current = null;
-      return;
-    }
+    if (gameState !== 'LEVEL_UP') return;
     const engine = engineRef.current;
     if (!engine) return;
     let done = false;
+    let armed = !engine.isKeyDown('Space');
     const go = () => {
-      if (done) return;
+      if (done || pausedRef.current) return;
       done = true;
+      engine.clearKeys();
       engine.advance();
       applyHud(engine.snapshot());
       setGameState('PLAYING');
     };
-    continueRef.current = go;
-    const timer = window.setTimeout(go, SPLASH_MS);
     const onKey = (event: KeyboardEvent) => {
-      if (event.code !== 'Space' && event.code !== 'Enter') return;
+      if (event.type === 'keyup') {
+        if (event.code === 'Space') armed = true;
+        return;
+      }
+      if (!intermissionAdvanceKey({ code: event.code, repeat: event.repeat, paused: pausedRef.current, armed })) return;
       event.preventDefault();
       go();
     };
     window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener('keydown', onKey);
-      continueRef.current = null;
+      window.removeEventListener('keyup', onKey);
     };
   }, [gameState]);
 
@@ -422,36 +422,29 @@ export default function App() {
 
         <AnimatePresence>
           {gameState === 'LEVEL_UP' && (
-            <motion.button
-              type="button"
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => continueRef.current?.()}
-              className="title-screen absolute inset-0 flex cursor-pointer flex-col items-center justify-center"
+              data-intermission={clearedWave}
+              className="title-screen absolute inset-0 z-10 flex flex-col items-center justify-center"
             >
-              <div className="font-mono text-[11px] uppercase tracking-[0.45em] text-green-400">Wave cleared</div>
-              <div className="logo-word mt-3 text-center">WAVE {clearedWave.toString().padStart(2, '0')}</div>
-              <div className="logo-sub">COMPLETE</div>
-              <div className="mt-8 font-mono text-[10px] uppercase tracking-[0.35em] text-green-700">Score</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.45em] text-green-400">Intervalo</div>
+              <div className="logo-word mt-3 text-center">NÍVEL {clearedWave}</div>
+              <div className="logo-sub">COMPLETO</div>
+              <div className="mt-8 font-mono text-[10px] uppercase tracking-[0.35em] text-green-700">Placar</div>
               <div className="font-mono text-5xl font-black text-green-300 drop-shadow-[0_0_16px_rgba(74,222,128,0.45)]">
                 {score.toString().padStart(6, '0')}
               </div>
               <div className="mt-6 flex gap-6 font-mono text-[11px] uppercase tracking-widest">
-                {upgrades.wings > 0 && <span className="text-orange-300">Side {upgrades.wingShots}</span>}
-                {upgrades.twin && <span className="text-amber-300">Twin</span>}
-                {upgrades.wings === 0 && !upgrades.twin && <span className="text-green-700">No saucer modules</span>}
+                <span className={shieldTone}>SHD {upgrades.shield}</span>
+                {upgrades.wings > 0 && <span className="text-orange-300">SIDE {upgrades.wingShots}</span>}
+                {upgrades.twin && <span className="text-amber-300">TWIN</span>}
               </div>
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-green-200/50">
-                Modules carry into wave {clearedWave + 1}
+              <p className="mt-8 font-mono text-sm uppercase tracking-[0.18em] text-green-100">
+                Pressione ESPAÇO para começar o nível {clearedWave + 1}
               </p>
-              <div className="splash-bar mt-8">
-                <span />
-              </div>
-              <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.28em] text-green-600">
-                Space, enter, or click
-              </div>
-            </motion.button>
+            </motion.div>
           )}
 
           {gameState === 'GAME_OVER' && (
@@ -481,8 +474,8 @@ export default function App() {
             </motion.div>
           )}
 
-          {paused && gameState === 'PLAYING' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55">
+          {paused && (gameState === 'PLAYING' || gameState === 'LEVEL_UP') && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55">
               <div className="font-mono text-4xl font-black tracking-[0.35em] text-white">PAUSADO</div>
               <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.28em] text-green-200">P retoma</div>
               <button

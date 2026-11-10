@@ -10,7 +10,11 @@ test('P toggles only during play and ignores repeats and text fields', () => {
   assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: 'INPUT', screen: 'PLAYING' }), false);
   assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: 'TEXTAREA', screen: 'START' }), false);
   assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: null, screen: 'START' }), false);
+  assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: null, screen: 'GAME_OVER' }), false);
+  assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: 'BODY', screen: 'LEVEL_UP' }), true);
+  assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: true, targetTag: 'BODY', screen: 'LEVEL_UP' }), false);
   assert.equal(pauseKeyAccepted({ code: 'Space', repeat: false, targetTag: null, screen: 'PLAYING' }), false);
+  assert.equal(pauseKeyAccepted({ code: 'Space', repeat: false, targetTag: null, screen: 'LEVEL_UP' }), false);
   assert.equal(gameplayKeyAllowed(true, 'BODY'), false);
   assert.equal(gameplayKeyAllowed(false, 'INPUT'), false);
   assert.equal(gameplayKeyAllowed(false, 'BODY'), true);
