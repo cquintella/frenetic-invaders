@@ -45,6 +45,13 @@ export type DifficultyFile = {
     intervalMin: number;
     duration: number;
   };
+  formation: {
+    countBase: number;
+    countPerLevel: number;
+    countMax: number;
+    columnsMax: number;
+    rowsMax: number;
+  };
   levels: Record<string, LevelOverride>;
 };
 
@@ -60,6 +67,10 @@ export type LevelOverride = {
   ufoSpeed?: number;
   diveInterval?: number;
   diveDuration?: number;
+  /** Replaces the curve for this wave. Ignored when both rows and columns are set. */
+  count?: number;
+  rows?: number;
+  columns?: number;
 };
 
 export type LevelTuning = {
@@ -74,6 +85,11 @@ export type LevelTuning = {
   ufoSpeed: number;
   diveInterval: number;
   diveDuration: number;
+  count: number;
+  rows: number;
+  columns: number;
+  /** Aliens in each row. A short last row stays centered. */
+  rowCounts: number[];
 };
 
 export const BUILTIN_DIFFICULTY: DifficultyFile = {
@@ -115,6 +131,13 @@ export const BUILTIN_DIFFICULTY: DifficultyFile = {
     intervalMin: 3.6,
     duration: 2.8,
   },
+  formation: {
+    countBase: 6,
+    countPerLevel: 4,
+    countMax: 50,
+    columnsMax: 10,
+    rowsMax: 5,
+  },
   levels: {},
 };
 
@@ -130,6 +153,10 @@ const LIMITS = {
   diveInterval: [1.5, 12],
   diveDuration: [0.8, 8],
   knee: [1, 30],
+  count: [1, 50],
+  countPerLevel: [0, 20],
+  columns: [1, 10],
+  rows: [1, 5],
 } as const;
 
 let installed: DifficultyFile = BUILTIN_DIFFICULTY;
@@ -174,6 +201,7 @@ export function difficultyFromUnknown(value: unknown): { file: DifficultyFile; w
   const shots = read(value, 'shots');
   const bombs = read(value, 'bombs');
   const dives = read(value, 'dives');
+  const formation = read(value, 'formation');
   const file: DifficultyFile = {
     march: {
       intervalBase: num(read(march, 'intervalBase'), base.march.intervalBase, LIMITS.marchInterval, warnings, 'march.intervalBase'),
@@ -213,6 +241,13 @@ export function difficultyFromUnknown(value: unknown): { file: DifficultyFile; w
       intervalMin: num(read(dives, 'intervalMin'), base.dives.intervalMin, LIMITS.diveInterval, warnings, 'dives.intervalMin'),
       duration: num(read(dives, 'duration'), base.dives.duration, LIMITS.diveDuration, warnings, 'dives.duration'),
     },
+    formation: {
+      countBase: num(read(formation, 'countBase'), base.formation.countBase, LIMITS.count, warnings, 'formation.countBase'),
+      countPerLevel: num(read(formation, 'countPerLevel'), base.formation.countPerLevel, LIMITS.countPerLevel, warnings, 'formation.countPerLevel'),
+      countMax: num(read(formation, 'countMax'), base.formation.countMax, LIMITS.count, warnings, 'formation.countMax'),
+      columnsMax: num(read(formation, 'columnsMax'), base.formation.columnsMax, LIMITS.columns, warnings, 'formation.columnsMax'),
+      rowsMax: num(read(formation, 'rowsMax'), base.formation.rowsMax, LIMITS.rows, warnings, 'formation.rowsMax'),
+    },
     levels: {},
   };
   const levels = read(value, 'levels');
@@ -240,10 +275,65 @@ export function difficultyFromUnknown(value: unknown): { file: DifficultyFile; w
       take('ufoSpeed', LIMITS.speed);
       take('diveInterval', LIMITS.diveInterval);
       take('diveDuration', LIMITS.diveDuration);
+      take('count', LIMITS.count);
+      take('rows', LIMITS.rows);
+      take('columns', LIMITS.columns);
+      if ((over.rows === undefined) !== (over.columns === undefined)) {
+        warnings.push(`levels.${key} precisa de rows e columns juntos; ignorado`);
+        delete over.rows;
+        delete over.columns;
+      }
       file.levels[key] = over;
     }
   }
   return { file, warnings };
+}
+
+/** A centered block for `count` aliens. Prefer a full rectangle near a 2:1 width. */
+export function formationGrid(count: number, columnsMax: number, rowsMax: number): {
+  count: number;
+  rows: number;
+  columns: number;
+  rowCounts: number[];
+} {
+  const columnsCap = Math.max(1, Math.round(columnsMax));
+  const rowsCap = Math.max(1, Math.round(rowsMax));
+  const n = clamp(Math.round(count), 1, columnsCap * rowsCap);
+  let best: { rows: number; columns: number; waste: number; ratio: number } | null = null;
+  for (let rows = 1; rows <= rowsCap; rows += 1) {
+    const columns = Math.ceil(n / rows);
+    if (columns > columnsCap) continue;
+    const waste = rows * columns - n;
+    const ratio = Math.abs(columns / rows - 2);
+    const better = !best
+      || waste < best.waste
+      || (waste === best.waste && ratio < best.ratio - 1e-9)
+      || (waste === best.waste && Math.abs(ratio - best.ratio) <= 1e-9 && columns > best.columns);
+    if (better) best = { rows, columns, waste, ratio };
+  }
+  const rows = best?.rows ?? 1;
+  const columns = best?.columns ?? Math.min(n, columnsCap);
+  const rowCounts = Array.from({ length: rows }, (_, row) => (
+    row === rows - 1 ? n - (rows - 1) * columns : columns
+  ));
+  return { count: n, rows, columns, rowCounts };
+}
+
+/** Exact rows×columns. A count below the rectangle shortens the last row and stays centered. */
+function formationRectangle(count: number, columns: number, rows: number): {
+  count: number;
+  rows: number;
+  columns: number;
+  rowCounts: number[];
+} {
+  const columnsCap = Math.max(1, Math.round(columns));
+  const rowsCap = Math.max(1, Math.round(rows));
+  const n = clamp(Math.round(count), 1, columnsCap * rowsCap);
+  const usedRows = Math.ceil(n / columnsCap);
+  const rowCounts = Array.from({ length: usedRows }, (_, row) => (
+    row === usedRows - 1 ? n - row * columnsCap : columnsCap
+  ));
+  return { count: n, rows: usedRows, columns: columnsCap, rowCounts };
 }
 
 function kneeGrow(level: number, base: number, perLevel: number, afterKnee: number, knee: number, min: number, max: number): number {
@@ -269,8 +359,23 @@ export function resolveLevel(file: DifficultyFile, level: number): LevelTuning {
     ufoSpeed: clamp(file.bombs.ufoSpeedBase + (wave - 1) * file.bombs.ufoSpeedPerLevel, LIMITS.speed[0], file.bombs.ufoSpeedMax),
     diveInterval: clamp(file.dives.intervalBase + (wave - 1) * file.dives.intervalPerLevel, file.dives.intervalMin, LIMITS.diveInterval[1]),
     diveDuration: file.dives.duration,
+    count: 1,
+    rows: 1,
+    columns: 1,
+    rowCounts: [1],
   };
   const over = file.levels[String(wave)];
+  const asked = over?.rows !== undefined && over.columns !== undefined
+    ? over.rows * over.columns
+    : over?.count ?? file.formation.countBase + (wave - 1) * file.formation.countPerLevel;
+  const capped = clamp(asked, 1, file.formation.countMax);
+  const grid = over?.rows !== undefined && over.columns !== undefined
+    ? formationRectangle(Math.min(over.rows * over.columns, capped), over.columns, over.rows)
+    : formationGrid(capped, file.formation.columnsMax, file.formation.rowsMax);
+  tuning.count = grid.count;
+  tuning.rows = grid.rows;
+  tuning.columns = grid.columns;
+  tuning.rowCounts = grid.rowCounts;
   if (!over) return tuning;
   if (over.shotRate !== undefined) tuning.shotRate = clamp(over.shotRate, 0, LIMITS.rate[1]);
   if (over.shotSpeed !== undefined) tuning.shotSpeed = clamp(over.shotSpeed, LIMITS.speed[0], LIMITS.speed[1]);

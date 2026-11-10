@@ -6,7 +6,7 @@ Na tela inicial, **Manual** abre esta mesma leitura em `/manual.html`, numa jane
 
 ## Uma partida
 
-Você abre o jogo, escreve um callsign de até 10 letras e aperta **Initiate Mission**. A canhoneira nasce no centro, com 1 laser e 3 pontos de escudo. A formação tem 5 filas por 10 colunas.
+Você abre o jogo, escreve um callsign de até 10 letras e aperta **Initiate Mission**. A canhoneira nasce no centro, com 1 laser e 3 pontos de escudo. A onda 1 traz 6 aliens, num bloco centrado. A cada onda entram mais 4, até 50, que é a formação de 5 filas por 10 colunas. Os desenhos continuam os recortes A1–E5, variados dentro da onda.
 
 O passo da formação é discreto: ela anda, para, anda. Se encostar numa borda, desce e inverte o sentido. A cada 5 segundos um alien sorteado desce numa elipse, solta uma bomba na metade do caminho até a nave e volta ao lugar na formação. A bomba cai em linha reta.
 
@@ -162,7 +162,7 @@ O acerto na nave está em `hurt`. Com escudo, desce um ponto e zera `wings` e `t
 
 **Drops.** `ufoPoints` e `rollPickup` recebem um número em `[0, 1)` e não leem o `World`. O motor passa `Math.random()`. Dá para testar o sorteio sem canvas.
 
-**Dificuldade.** `public/config/difficulty.json` define marcha, tiros inimigos, bomba do disco e mergulho. O formato está em `public/config/README.md`. Se o arquivo faltar ou um campo for inválido, o jogo usa o padrão embutido e avisa no console. Depois da onda 6 o acréscimo de tiros por segundo é menor, há um teto de tiros na tela e sai um tiro por vez, fora do passo da marcha.
+**Dificuldade.** `public/config/difficulty.json` define marcha, tiros inimigos, bomba do disco, mergulho e a quantidade de aliens. O formato está em `public/config/README.md`. Se o arquivo faltar ou um campo for inválido, o jogo usa o padrão embutido e avisa no console. Depois da onda 6 o acréscimo de tiros por segundo é menor, há um teto de tiros na tela e sai um tiro por vez, fora do passo da marcha. A onda 1 tem 6 aliens e a onda 12 chega a 50.
 
 **Naves.** Os mapas 8×8, 16×14 e 8×6 continuam no código como referência de forma. A nave do jogador é o recorte da folha 2×2: pose neutra e as duas inclinações de 15%. O quadrante dos disparos azuis não é usado. A proporção da folha entra na caixa 50×40 com o nariz no mesmo ponto nas três poses. A inclinação segue o movimento e para junto com a pausa, porque usa o tempo da simulação. A escolta continua o pod. O disco continua o anel na caixa 60×25. Os 25 aliens são o recorte da prancha 5×5, de A1 a E5, com o fundo, a grade e o rótulo fora. O índice escolhe qual recorte aparece em cada vaga e não muda tipo, pontos ou caixa. Cada recorte gera oito poses uma vez (respiração curta e um balanço na base). O quadro sai do tempo da simulação: parado, a pose não avança. A chama da nave é um efeito à parte, no mesmo tempo, e não usa o quadrante dos disparos azuis. O canvas usa o `devicePixelRatio` até 2 e não força pixelização. O plasma é a mesma gota de antes, com 40% da largura; o comprimento e a caixa de 4×12 não mudaram.
 

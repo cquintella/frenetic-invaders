@@ -35,7 +35,7 @@ import { prefersReducedMotion } from './motion';
 import { drawWorld } from './draw';
 import { createSky, updateSky } from './sky';
 import { rollPickup, ufoPoints } from './drops';
-import { alienLook, shipLean } from './alienMotion';
+import { alienLookIndex, shipLean } from './alienMotion';
 import { levelTuning } from './difficulty';
 import { ALIEN_PALETTES } from './sprites';
 import type { Bomb, Bullet, Entity, HudSnapshot, Invader, PickupKind, Ufo, WingCannon, World } from './types';
@@ -205,25 +205,33 @@ export class GameEngine {
   }
 
   private spawnInvaders(): void {
+    const plan = levelTuning(this.world.level);
+    const gapX = 15;
+    const gapY = 15;
     const invaders: Invader[] = [];
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 10; col++) {
+    let index = 0;
+    for (let row = 0; row < plan.rowCounts.length; row++) {
+      const cols = plan.rowCounts[row] ?? 0;
+      const rowWidth = cols * INVADER_WIDTH + Math.max(0, cols - 1) * gapX;
+      const originX = (CANVAS_WIDTH - rowWidth) / 2;
+      const y = 80 + row * (INVADER_HEIGHT + gapY);
+      for (let col = 0; col < cols; col++) {
         const type = row === 0 ? 0 : row < 3 ? 1 : 2;
-        const x = 80 + col * (INVADER_WIDTH + 15);
-        const y = 80 + row * (INVADER_HEIGHT + 15);
+        const x = originX + col * (INVADER_WIDTH + gapX);
         invaders.push({
           x,
           y,
           width: INVADER_WIDTH,
           height: INVADER_HEIGHT,
           type,
-          look: alienLook(this.world.level, row, col),
+          look: alienLookIndex(this.world.level, index),
           points: (3 - type) * 10,
           alive: true,
           homeX: x,
           homeY: y,
           dive: null,
         });
+        index += 1;
       }
     }
     this.world.invaders = invaders;

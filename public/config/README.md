@@ -4,7 +4,9 @@
 
 A curva sobe até `shots.knee` (onda 6) com `ratePerLevel` e, depois disso, com `ratePerLevelAfterKnee`, que é menor. `shots.volley` é 1: sai um tiro por vez, de um alien vivo que não está mergulhando. `maxAlive` recusa tiros novos quando a tela já tem esse tanto.
 
-`levels` troca o resultado de uma onda. A chave é o número da onda. Exemplo: `"8": { "maxAlive": 4 }`.
+`levels` troca o resultado de uma onda. A chave é o número da onda. Exemplo: `"8": { "maxAlive": 4 }` ou `"3": { "count": 12 }`. `rows` e `columns` juntos fixam o retângulo daquela onda.
+
+A quantidade de aliens começa em 6 e sobe 4 por onda, até 50. O jogo escolhe um bloco perto de 2 colunas por fila, no máximo 5×10, e centra cada fila.
 
 | Campo | Efeito |
 | --- | --- |
@@ -19,3 +21,5 @@ A curva sobe até `shots.knee` (onda 6) com `ratePerLevel` e, depois disso, com 
 | `bombs.ufoSpeedBase` / `ufoSpeedPerLevel` / `ufoSpeedMax` | Velocidade do disco. |
 | `dives.intervalBase` / `intervalPerLevel` / `intervalMin` | Segundos entre mergulhos. |
 | `dives.duration` | Duração de um mergulho. |
+| `formation.countBase` / `countPerLevel` / `countMax` | Aliens na onda. A onda 1 usa a base. O teto é 50, a formação antiga de 5×10. |
+| `formation.columnsMax` / `rowsMax` | Limite do bloco. Cada fila é centrada na tela. |

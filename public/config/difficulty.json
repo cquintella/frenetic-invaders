@@ -37,5 +37,12 @@
     "intervalMin": 3.6,
     "duration": 2.8
   },
+  "formation": {
+    "countBase": 6,
+    "countPerLevel": 4,
+    "countMax": 50,
+    "columnsMax": 10,
+    "rowsMax": 5
+  },
   "levels": {}
 }

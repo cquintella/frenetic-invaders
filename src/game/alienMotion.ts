@@ -18,6 +18,13 @@ export function alienLook(level: number, row: number, col: number): number {
   return (wave * 5 + slot) % ALIEN_IDS.length;
 }
 
+/** Sprite for the nth alien of a wave. The first 25 are distinct, then the board repeats. */
+export function alienLookIndex(level: number, index: number): number {
+  const wave = Math.max(1, level) - 1;
+  const slot = Math.max(0, Math.floor(index));
+  return (wave * 5 + slot) % ALIEN_IDS.length;
+}
+
 /**
  * Frame index from simulation time. The same time always returns the same
  * frame, so a pause (time frozen) holds the pose and resume does not skip.
