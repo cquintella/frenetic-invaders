@@ -1,42 +1,45 @@
-# Frenetic Invaders 🚀
+# Frenetic Invaders
 
-Bem-vindo ao **Frenetic Invaders**, um clone clássico e intenso de Space Invaders com gráficos modernos, sistema de laser especial e inimigos implacáveis!
+Jogo de naves no navegador. Uma formação de 5 filas por 10 desce pela tela, a canhoneira atira por baixo e um disco cruza o alto soltando módulos. O placar vai para o Hall of Fame.
 
----
+O manual completo está em [MANUAL.md](MANUAL.md). No jogo, o botão Manual abre a mesma leitura numa janela.
 
-O manual de jogo e o apêndice de arquitetura estão em [MANUAL.md](MANUAL.md). No jogo, o botão Manual abre [public/manual.html](public/manual.html) numa janela popup.
+## Capturas
 
----
+![Tela de título, com o callsign, Initiate Mission, Hall of Fame e Manual](docs/screenshots/title-screen.webp)
 
-## 🛠️ Como Instalar e Rodar
+![Onda 1: formação 5×10 das quatro naves, nebulosa roxa e a canhoneira com escudo](docs/screenshots/gameplay.webp)
 
-### Pré-requisitos
-Você precisa ter o **Node.js** (versão 18 ou superior) instalado em seu computador.
-- Baixe em: [nodejs.org](https://nodejs.org/)
+## Como rodar
 
-### Opção 1: Usando os Scripts de Instalação (Recomendado)
+É preciso Node.js e npm.
 
-#### No Windows:
-1. Clique duas vezes no arquivo `install.bat`.
-2. O script irá instalar as dependências e iniciar o jogo automaticamente no seu navegador.
+```bash
+npm install
+npm run dev
+```
 
-#### No macOS / Linux:
-1. Abra o Terminal na pasta do jogo.
-2. Dê permissão de execução ao script: `chmod +x install.sh`
-3. Execute o script: `./install.sh`
+`npm run dev` executa `tsx server.ts`. O servidor escuta na porta 3000: [http://localhost:3000](http://localhost:3000).
 
-### Opção 2: Manualmente via Terminal
-1. Abra o terminal na pasta do projeto.
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
-3. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-4. Abra o navegador no endereço indicado (geralmente `http://localhost:3000`).
+## Controles
 
----
+| Tecla | Ação |
+|---|---|
+| A, D ou setas | Move a nave na horizontal |
+| Espaço | Tiro |
+| X ou Shift | Laser. Gasta uma carga |
+| P | Pausa e retoma a partida e o intervalo entre ondas |
+| Espaço, de novo | No intervalo, começa a onda seguinte. É preciso soltar e apertar outra vez |
+| M | Liga e desliga o som |
+| [ e ] | Abaixa e aumenta o volume |
 
-Divirta-se pilotando, Comandante.
+O callsign tem no máximo 10 letras. Initiate Mission começa a partida. Enter não inicia nem reinicia.
+
+## O que tem no jogo
+
+- Cada onda é uma formação de 5×10. São quatro naves inimigas, uma por fila, e a quinta fila repete a primeira. A onda seguinte gira qual fica no topo.
+- O fundo troca a cada onda: nebulosa roxa, galáxia dourada e nebulosa azul, e depois recomeça. A lista está em `backgrounds`, dentro de [public/config/difficulty.json](public/config/difficulty.json).
+- Esse JSON também ajusta a marcha, os tiros, as bombas e os mergulhos. Campo inválido ou arquivo ausente volta ao padrão do código.
+- O disco soma pontos e solta um módulo: canhão lateral, tiro duplo ou escudo. O módulo seguinte, na mesma partida, nunca é do mesmo tipo.
+- O canhão lateral vem desse módulo. São até dois, um de cada lado, com seis salvas no total. Cada salva sobe com a bomba do disco.
+- O Hall of Fame guarda os placares e mostra os 100 maiores, com callsign, onda e pontos.
