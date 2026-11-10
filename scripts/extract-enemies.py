@@ -258,6 +258,133 @@ def extract_cell(rgb: np.ndarray) -> np.ndarray:
     return np.dstack([rgb, alpha])
 
 
+def _channels(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    red = rgb[:, :, 0].astype(np.int16)
+    green = rgb[:, :, 1].astype(np.int16)
+    blue = rgb[:, :, 2].astype(np.int16)
+    peak = np.maximum(np.maximum(red, green), blue)
+    chroma = peak - np.minimum(np.minimum(red, green), blue)
+    return red, green, blue, peak, chroma
+
+
+def strip_grid_lines(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """A metal divider is a near-black column hugging the cell edge."""
+    _, _, _, peak, chroma = _channels(rgb)
+    height, width = alpha.shape
+    dark = (alpha > 0) & (peak < 40) & (chroma < 22)
+    out = alpha.copy()
+    margin = 10
+    for x in list(range(margin)) + list(range(max(0, width - margin), width)):
+        column = dark[:, x]
+        if int(column.sum()) > height * 0.32:
+            out[column, x] = 0
+    return out
+
+
+def strip_backdrop(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """E3's plate of sky and ground touches the cleared edge. Armor does not.
+
+    The walk stays on blue-gray fill and stops at the black contour, so the
+    helmet and the ink around the plates stay.
+    """
+    red, green, blue, peak, chroma = _channels(rgb)
+    height, width = alpha.shape
+    ink = (peak < 28) & (chroma < 18)
+    avg = rgb.mean(axis=2)
+    backdrop = (
+        (alpha > 0)
+        & ~ink
+        & (blue > red + 15)
+        & (blue + 10 >= green)
+        & (red < 85)
+        & (avg < 125)
+        & (chroma < 100)
+    )
+    cleared = np.zeros_like(backdrop)
+    for _ in range(3):
+        opaque = alpha > 0
+        transparent = ~opaque
+        touch = np.zeros_like(opaque)
+        touch[1:, :] |= transparent[:-1, :]
+        touch[:-1, :] |= transparent[1:, :]
+        touch[:, 1:] |= transparent[:, :-1]
+        touch[:, :-1] |= transparent[:, 1:]
+        seeds = backdrop & touch & ~cleared
+        if not seeds.any():
+            break
+        seen = seeds.copy()
+        stack = list(zip(*np.nonzero(seeds)))
+        while stack:
+            y, x = stack.pop()
+            for ny, nx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+                if ny < 0 or nx < 0 or ny >= height or nx >= width or seen[ny, nx]:
+                    continue
+                if not backdrop[ny, nx]:
+                    continue
+                seen[ny, nx] = True
+                stack.append((ny, nx))
+        cleared |= seen
+        alpha = alpha.copy()
+        alpha[seen] = 0
+        # Contour that only held the backdrop up is not part of the creature.
+        opaque = alpha > 0
+        paint = opaque & ~ink
+        beside = np.zeros_like(paint)
+        beside[1:, :] |= paint[:-1, :]
+        beside[:-1, :] |= paint[1:, :]
+        beside[:, 1:] |= paint[:, :-1]
+        beside[:, :-1] |= paint[:, 1:]
+        orphan = opaque & ink & ~beside
+        alpha[orphan] = 0
+    return alpha
+
+
+def keep_creature(rgb: np.ndarray, alpha: np.ndarray) -> np.ndarray:
+    """Drop the corner glyph, leftover divider stubs, and ground crumbs."""
+    _, _, _, _, chroma = _channels(rgb)
+    height, width = alpha.shape
+    opaque = alpha > 0
+    parts = components(opaque)
+    if not parts:
+        return alpha
+    parts.sort(key=len, reverse=True)
+    main = parts[0]
+    body = np.zeros_like(opaque)
+    for y, x in main:
+        body[y, x] = True
+    near_body = dilate(body, 4)
+    out = alpha.copy()
+    for pixels in parts:
+        ys = [p[0] for p in pixels]
+        xs = [p[1] for p in pixels]
+        y0, y1 = min(ys), max(ys)
+        x0, x1 = min(xs), max(xs)
+        colors = rgb[ys, xs]
+        med_r, med_g, med_b = np.median(colors, axis=0)
+        label = x1 < width * 0.24 and y1 < height * 0.26 and len(pixels) < 900
+        divider = (x1 - x0) <= 8 and (y1 - y0) > height * 0.35
+        crumb = len(pixels) < 220 and y0 > height * 0.72 and float(np.median(chroma[ys, xs])) < 36
+        # E3's leftover sky sits between the feet as its own blue patch.
+        sky = med_b > med_r + 25 and med_b + 5 >= med_g and med_r < 55 and y0 > height * 0.45
+        speck = len(pixels) < 12 or (len(pixels) < 90 and float(np.median(chroma[ys, xs])) < 30)
+        if pixels is main:
+            continue
+        if label or divider or crumb or sky or speck or not any(near_body[y, x] for y, x in pixels[::2]):
+            for y, x in pixels:
+                out[y, x] = 0
+    return out
+
+
+def finish_sprite(rgba: np.ndarray) -> np.ndarray:
+    rgb = rgba[:, :, :3].copy()
+    alpha = rgba[:, :, 3].copy()
+    alpha = strip_grid_lines(rgb, alpha)
+    alpha = strip_backdrop(rgb, alpha)
+    alpha = keep_creature(rgb, alpha)
+    rgb[alpha == 0] = 0
+    return np.dstack([rgb, alpha])
+
+
 def trim(image: Image.Image, pad: int = 2) -> Image.Image:
     arr = np.array(image)
     ys, xs = np.nonzero(arr[:, :, 3] > 16)
@@ -285,7 +412,7 @@ def main() -> None:
                 continue
             y0, y1 = ROW_EDGES[row] + 4, ROW_EDGES[row + 1] - 4
             x0, x1 = COL_EDGES[col] + 4, COL_EDGES[col + 1] - 4
-            rgba = extract_cell(board[y0:y1, x0:x1, :3])
+            rgba = finish_sprite(extract_cell(board[y0:y1, x0:x1, :3]))
             image = trim(Image.fromarray(rgba, "RGBA"))
             alpha = np.array(image)[:, :, 3]
             opaque = int((alpha > 16).sum())
@@ -297,8 +424,8 @@ def main() -> None:
         if stale.stem not in shipped:
             stale.unlink()
     (OUT / "index.json").write_text(json.dumps(report, indent=2) + "\n")
-    if len(report) != 25 or any(item["opaque"] < 800 for item in report):
-        raise SystemExit("a cell came out empty or the board was not 5×5")
+    if len(report) != len(shipped) or any(item["opaque"] < 800 for item in report):
+        raise SystemExit("a shipped cell came out empty")
 
 
 if __name__ == "__main__":
