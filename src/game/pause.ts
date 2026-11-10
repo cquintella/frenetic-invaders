@@ -1,3 +1,9 @@
+/** Shown above the pause instruction. */
+export const PAUSE_TITLE = 'PAUSED';
+
+/** The only instruction on the pause screen. */
+export const PAUSE_CONTINUE = 'Press P to continue';
+
 /** P toggles during play and the wave interval, once per press, never from a text field. */
 export function pauseKeyAccepted(input: {
   code: string;

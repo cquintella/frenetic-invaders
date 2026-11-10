@@ -6,7 +6,7 @@ import { soundService } from './services/soundService';
 import { rankScores } from './scores/topScores';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, STEP } from './game/constants';
 import { intermissionAdvanceKey } from './game/intermission';
-import { frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
+import { PAUSE_CONTINUE, PAUSE_TITLE, frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './game/pause';
 import { GameEngine } from './game/engine';
 import { alienCutsReady, shipPosesReady } from './game/shipArt';
 import { installDifficulty, loadDifficultyConfig } from './game/difficulty';
@@ -476,14 +476,13 @@ export default function App() {
 
           {paused && (gameState === 'PLAYING' || gameState === 'LEVEL_UP') && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55">
-              <div className="font-mono text-4xl font-black tracking-[0.35em] text-white">PAUSADO</div>
-              <div className="mt-3 font-mono text-[11px] uppercase tracking-[0.28em] text-green-200">P retoma</div>
+              <div className="font-mono text-4xl font-black tracking-[0.35em] text-white">{PAUSE_TITLE}</div>
               <button
                 type="button"
                 onClick={() => pauseRef.current()}
-                className="mt-6 border border-green-400 px-8 py-3 font-bold text-green-100"
+                className="mt-6 bg-transparent font-mono text-sm text-green-100"
               >
-                RETOMA
+                {PAUSE_CONTINUE}
               </button>
             </div>
           )}

@@ -37,7 +37,7 @@ O servidor sobe em `http://localhost:3000`. No macOS ou Linux, `./install.sh` fa
 | Espaço | Tiro. Cadência de 0,35 s. Com tiro duplo, saem dois |
 | X ou Shift | Laser. Gasta 1 carga. Recarga de 1 s entre disparos |
 | Espaço, de novo | No intervalo entre ondas, começa a seguinte. Enter e clique não avançam |
-| P | Pausa a partida e o intervalo. Soltar não começa a onda |
+| P | Pausa e retoma a partida e o intervalo. A tela mostra PAUSED e "Press P to continue". A tecla repetida não alterna. Soltar a pausa não começa a onda |
 | Clique em Initiate Mission | Começa a partida. O campo de callsign precisa ter texto |
 
 O callsign é gravado em maiúsculas, no máximo 10 caracteres. Enter não inicia a missão na tela de abertura e não reinicia depois do game over. Esses dois passos são botões.

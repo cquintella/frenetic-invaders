@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './pause.ts';
+import { PAUSE_CONTINUE, PAUSE_TITLE, frameStep, gameplayKeyAllowed, pauseKeyAccepted } from './pause.ts';
 import { initialPlayback, reducePlayback } from '../services/music.ts';
 import { GameEngine } from './engine.ts';
+
+test('the pause screen says Press P to continue', () => {
+  assert.equal(PAUSE_TITLE, 'PAUSED');
+  assert.equal(PAUSE_CONTINUE, 'Press P to continue');
+});
 
 test('P toggles only during play and ignores repeats and text fields', () => {
   assert.equal(pauseKeyAccepted({ code: 'KeyP', repeat: false, targetTag: 'BODY', screen: 'PLAYING' }), true);
